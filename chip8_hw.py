@@ -78,14 +78,34 @@ class chip8(object):
             self.pc = opcode & 0x0FFF
         elif (opcode & 0xF000) == 0x3000:
             #0x3000 == 3xkk, Skip next instruction if Vx == kk.
-            if self.V[opcode & ????] == opcode & 0x00FF:
-                self.pc += 2
+            if self.V[(opcode & 0x0F00) >> 8] == opcode & 0x00FF:
+                self.pc += 4
             else:
-                self.pc += 1
+		self.pc += 2
         elif (opcode & 0xF000) == 0x4000:
             #0x4000 == 4xkk, Skip next instruction if Vx != kk.
-            if self.V[stack_pointer] != opcode & 0x00FF:
-                self
+            if self.V[(opcode & 0x0F00) >> 8] != opcode & 0x00FF:
+                self.pc += 4
+	    else:
+	        self.pc += 2
+	elif (opcode & 0xF000) == 0x5000:
+	    #0x5000 = 5xy0 SE, skip next instruction if Vx = Vy
+	    if self.V[(opcode & 0x0F00) <<  8] == self.V[(opcode & 0x00F0) >> 4]:
+		self.pc += 4
+	    else:
+		self.pc += 2
+	elif (opcode & 0xF000) == 0x6000:
+	    #0x6000 = 6xkk put value kk in to register Vx
+	    self.V[(opcode & 0x0F00) << 8] = opcode & 0x00FF
+	    self.pc += 2
+	elif (opcode & 0xF000) == 0x7000:
+	    #0x7000 = 7xkk Add Vx. Add value kk to register Vx and store value
+	    #in Vx
+	    self.V[(opcode & 0x0F00) >> 8] += opcode & 0x00FF 
+	    self.pc += 2
+	elif (opcode & 0xF000) == 0x8000:
+	    #0x8000 = 8x70 Set Vx = Vy
+	    #TODO: The several 0x8000 instructions.
         elif (opcode & 0xF000) == 0xA000:
             #0xA000 == ANNN: Sets I to the address NNN
             self.I = opcode & 0x0FFF
