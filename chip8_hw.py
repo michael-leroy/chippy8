@@ -54,6 +54,9 @@ class chip8(object):
         #all the various opcodes. Maybe this can be cleaned up later since python
         #has no 'switch' statement.
 
+	#Vx and Vy are used very often here are some shortcuts
+	v_x = (opcode & 0x0F00) >> 8
+        v_y = (opcode & 0x00F0) >> 4
         #Some cases we cannot rely on the first 4 bits to see what an opcode does.
         #If the first 4 bits are all zero we must look at the second 4 bits.
 
@@ -80,96 +83,96 @@ class chip8(object):
             self.pc = opcode & 0x0FFF
         elif (opcode & 0xF000) == 0x3000:
             #0x3000 == 3xkk, Skip next instruction if Vx == kk.
-            if self.V[(opcode & 0x0F00) >> 8] == opcode & 0x00FF:
+            if self.V[x_v] == opcode & 0x00FF:
                 self.pc += 4
             else:
 		self.pc += 2
         elif (opcode & 0xF000) == 0x4000:
             #0x4000 == 4xkk, Skip next instruction if Vx != kk.
-            if self.V[(opcode & 0x0F00) >> 8] != opcode & 0x00FF:
+            if self.V[x_v] != opcode & 0x00FF:
                 self.pc += 4
 	    else:
 	        self.pc += 2
 	elif (opcode & 0xF000) == 0x5000:
 	    #0x5000 = 5xy0 SE, skip next instruction if Vx = Vy
-	    if self.V[(opcode & 0x0F00) >>  8] == self.V[(opcode & 0x00F0)] >> 4]:
+	    if self.V[x_v] == self.V[v_y]:
 		self.pc += 4
 	    else:
 		self.pc += 2
 	elif (opcode & 0xF000) == 0x6000:
 	    #0x6000 = 6xkk put value kk in to register Vx
-	    self.V[(opcode & 0x0F00) >> 8] = opcode & 0x00FF
+	    self.V[x_v] = opcode & 0x00FF
 	    self.pc += 2
 	elif (opcode & 0xF000) == 0x7000:
 	    #0x7000 = 7xkk Add Vx. Add value kk to register Vx and store value
 	    #in Vx
-	    self.V[(opcode & 0x0F00) >> 8] += opcode & 0x00FF 
+	    self.V[x_v] += opcode & 0x00FF 
 	    self.pc += 2
 	elif (opcode & 0xF000) == 0x8000 and (opcode & 0x000F) == 0x0:
 	    #0x8000 = 8xy0 Set Vx = Vy
-            self.V[(opcode & 0x0F00) >>  8] = selv.V[(opcode & 0x00F0) >>  4 ]
+            self.V[x_v] = selv.V[x_y]
             self.pc += 2
         elif (opcode & 0xF000) == 0x8000 and (opcode & 0x000F) == 0x1:
             #8xy1 Set Vx = Vx or Vy
-            self.V[(opcode & 0x0F00) >>  8] = self.V[(opcode & 0x0F00) >>  8] | selv.V[(opcode & 0x00F0)[ >>  4]
+            self.V[x_v] = self.V[x_v] | self.V[x_y]
             self.pc += 2
         elif (opcode & 0xF000) == 0x8000 and (opcode & 0x000F) == 0x2:
             #8xy2 Set Vx = Vx and Vy
-            self.V[(opcode & 0x0F00) >>  8] = self.V[(opcode & 0x0F00) >>  8] & selv.V[(opcode & 0x00F0)] >>  4]
+            self.V[x_v] = self.V[x_v] & self.V[x_y]
             self.pc += 2
         elif (opcode & 0xF000) == 0x8000 and (opcode & 0x000F) == 0x3:
             #8xy3 Set Vx = Vx XOR Vy
-            self.V[(opcode & 0x0F00) >>  8] = self.V[(opcode & 0x0F00) >>  8] ^ selv.V[(opcode & 0x00F0)] >>  4]
+            self.V[x_v] = self.V[x_v] ^ self.V[x_y]
             self.pc += 2
         elif (opcode & 0xF000) == 0x8000 and (opcode & 0x000F) == 0x4:
             #8xy4 Set Vx = Vx + Vy set VF = carry is over 255
             #if the two value are over 8 bit (255) carry the result in VF
-            if (self.V[(opcode & 0x0F00) >>  8] + selv.V[(opcode & 0x00F0) >>  4]) > 0xFF:
+            if (self.V[x_v] + self.V[x_y]) > 0xFF:
                 self.V[0xF] = 1
-                self.V[(opcode & 0x0F00) >>  8] += (selv.V[(opcode & 0x00F0) >> 4]) & 0xFF)
+                self.V[x_v] += (self.V[x_y]) & 0xFF)
             else:
-                self.V[(opcode & 0x0F00) >>  8] += selv.V[(opcode & 0x00F0) >> 4]
+                self.V[x_v] += self.V[x_y]
                 self.V[0xF] = 0
             self.pc += 2
         elif (opcode & 0xF000) == 0x8000 and (opcode & 0x000F) == 0x5:
             #8xy5 - Sub Vx, Vy.
             #Set Vx = Vx - Vy, set Vf = if it does NOT borrow
-            if (self.V[(opcode & 0x0F00) >>  8] > selv.V[(opcode & 0x00F0) >>  4]):
+            if (self.V[x_v] > self.V[x_y]):
                 self.V[0xF] = 1 #NOT BORROW
             else:
                 self.V[0xF] = 0 #Brrow
-            self.V[(opcode & 0x0F00) >>  8] -= selv.V[(opcode & 0x00F0) >> 4]
+            self.V[x_v] -= self.V[x_y]
             self.pc += 2
         elif (opcode & 0xF000) == 0x8000 and (opcode & 0x000F) == 0x6:
             #8xy6 - SHR Vx {, Vy}
             #If the least significant bit of Vx is 1, set VF = 1
             #otherwise 0. Then divide Vx by 2
-            if self.V[(opcode & 0x0F00) >>  8] & 0b00000001 == 0b1:
+            if self.V[x_v] & 0b00000001 == 0b1:
                 self.V[0xF] = 1
             else:
                 self.V[0xF] = 0
-            self.V[(opcode & 0x0F00) >>  8] /= 2
+            self.V[x_v] /= 2
             self.pc += 2
         elif (opcode & 0xF000) == 0x8000 and (opcode & 0x000F) == 0x7:
             #Set Vx = Vy - Vx, set VF = NOT BORROW
-            if selv.V[(opcode & 0x00F0) >> 4] > self.V[(opcode & 0x0F00) >>  8]:
+            if selv.V[x_y] > self.V[x_v]:
                 self.V[0xF] = 1 #NOT BOROW
             else:
                 self.V[0xF] = 0
-            self.V[(opcode & 0x0F00) >>  8] = selv.V[(opcode & 0x00F0) >> 4] - self.V[(opcode & 0x0F00) >>  8]
+            self.V[x_v] = selv.V[x_y] - self.V[x_v]
             self.pc += 2
         elif (opcode & 0xF000) == 0x8000 and (opcode & 0x000F) == 0xE:
             #8xyE - SHL Vx {, Vy}
-            if (self.V[(opcode & 0x0F00) >>  8] >> 7) == 1:
+            if (self.V[x_v] >> 7) == 1:
                 self.V[0xF] = 1
             else:
                 self.V[0xF] = 0
-            self.V[(opcode & 0x0F00) >>  8] = self.V[(opcode & 0x0F00) >>  8] << 1
+            self.V[x_v] = self.V[x_v] << 1
             self.pc += 2
         elif (opcode & 0xF000) == 0x9000:
             #9xy0 - SNE Vx, Vy
             #Skip next instruction if Vx != Vy
-            if self.V[(opcode & 0x0F00) >>  8] != selv.V[(opcode & 0x00F0) >> 4]:
+            if self.V[x_v] != selv.V[x_y]:
                 self.pc += 4
             else:
                 self.pc += 2
@@ -184,12 +187,12 @@ class chip8(object):
             #Cxkk - RND Vx, byte
             #Gen number between 0x0 and 0xFF and & it with the value of kk then
             #store in Vx
-            self.V[(opcode & 0x0F00) >>  8] = random.randrange(0x0, 0xFF) & (opcode & 0x00FF)
+            self.V[x_v] = random.randrange(0x0, 0xFF) & (opcode & 0x00FF)
             self.pc += 2
         elif (opcode & 0xF000) == 0xD000:
             # DRW Vx, Vy. nibble
-            drw_x = self.V[(opcode & 0x0F00) >>  8]
-            drw_y = selv.V[(opcode & 0x00F0) >> 4]
+            drw_x = self.V[x_v]
+            drw_y = self.V[x_y]
             drw_height = opcode & 0x000F
             sprite_data = []
             #set VF to zero because there has been no collision yet
@@ -213,8 +216,34 @@ class chip8(object):
                     else:
                         self.V[0xF] = 0
             self.update_screen = True
+	    self.pc += 2
 
-
+        elif (opcode & 0xF000) == 0xE000 and (opcode & 0x000F) == 0xE:
+	    #Ex9E - SKP Vx, skip next instruction if key is pressed.
+	    if self.keys[v_x] == 1:
+		self.pc += 4
+	    else:
+		self.pc += 2
+        elif (opcode & 0xF000) == 0xE000 and (opcode & 0x000F) == 0x1:
+	    #ExA1, SKNP Vx skip next instruction if key is NOT pressed.
+	    if self.keys[v_x] != 1:
+		self.pc += 4
+	    else:
+		self.pc += 2
+        elif (opcode & 0xF000) == 0xF000 and (opcode & 0x000F) == 0x7:
+	    #Fx07 set Vx = delay timer value
+	    self.V[v_x] = self.delay_timer
+	    self.pc += 2
+        elif (opcode & 0xF000) == 0xF000 and (opcode & 0x000F) == 0xA:
+	    #Fx0A wait for a key press and store value in Vx
+	    key_wait_pressed = 0
+	    for key in self.keys:
+		if key == 1:
+		    self.V[v_x] = 1
+		    key_wait_pressed = 1
+	    	    break
+	    if key_wait_pressed == 1:
+		self.pc += 2
 
         else:
             print('Unknown/Invalid opcode ' + str(opcode))
