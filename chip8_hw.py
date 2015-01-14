@@ -25,7 +25,8 @@ class chip8(object):
 
         #The graphics are single color with a screen rez of 64 * 32
         self.gfx = [0] * (64*32)
-
+        #Used to determine when to update the screen
+        self.update_screen = False
         #The chip8 has no Interrupts, but there are two timer registers
         #that count at 60hz. When set above zero they must count down back to
         #zero
@@ -196,18 +197,22 @@ class chip8(object):
             #Read the sprite data from memory
             for x in xrange(drw_height):
                 sprite_data.append(self.memory[self.I + x])
-            for sprite_row in sprite_data:
+            for sprite_row in xrange(len(sprite_data)):
                 #Sprites are always 8 pixels wide
                 for pixel_offset in xrange(8):
                     location = drw_x + pixel_offset + ((drw_y + sprite_row) * 64)
-                    if (drw_y + sprite_row
+                    if (drw_y + sprite_row) >= 32 or (drw_x + pixel_offset -1) >= 64:
+                        #Don't do anything for pixels that are off the screen
+                        #I think they should loop to the other side.
+                        continue
                     drw_mask = 1 << 8 - pixel_offset
-                    curr_pixel = (sprite_row & mask) >> (8 - pixel_offset)
+                    curr_pixel = (sprite_data[sprite_row] & mask) >> (8 - pixel_offset)
                     self.gfx[location] ^= curr_pixel
                     if self.gfx[location] == 0:
                         self.V[0xF] = 1
                     else:
                         self.V[0xF] = 0
+            self.update_screen = True
 
 
 
