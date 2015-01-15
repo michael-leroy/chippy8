@@ -2,7 +2,7 @@
 
 import random
 
-class chip8(object):
+class ChipEightCpu(object):
     def __init__(self):
         #chip8 has 4k of system ram
         '''Systems memory map:
@@ -67,6 +67,7 @@ class chip8(object):
                 #Assuming clearing sets all gfx bits to zero
                 self.gfx = [0] * (64*32)
                 self.pc += 2
+                self.update_screen = True
 
             elif (opcode & 0x000F) == 0x000E:
                 #0x000E == 0x00EE: returns from subroutine
@@ -91,18 +92,18 @@ class chip8(object):
             #0x4000 == 4xkk, Skip next instruction if Vx != kk.
             if self.V[x_v] != opcode & 0x00FF:
                 self.pc += 4
-	    else:
+            else:
 	        self.pc += 2
-	elif (opcode & 0xF000) == 0x5000:
+        elif (opcode & 0xF000) == 0x5000:
 	    #0x5000 = 5xy0 SE, skip next instruction if Vx = Vy
-	    if self.V[x_v] == self.V[v_y]:
-		self.pc += 4
-	    else:
-		self.pc += 2
-	elif (opcode & 0xF000) == 0x6000:
-	    #0x6000 = 6xkk put value kk in to register Vx
-	    self.V[x_v] = opcode & 0x00FF
-	    self.pc += 2
+            if self.V[x_v] == self.V[v_y]:
+                self.pc += 4
+            else:
+                self.pc += 2
+        elif (opcode & 0xF000) == 0x6000:
+            #0x6000 = 6xkk put value kk in to register Vx
+            self.V[x_v] = opcode & 0x00FF
+            self.pc += 2
 	elif (opcode & 0xF000) == 0x7000:
 	    #0x7000 = 7xkk Add Vx. Add value kk to register Vx and store value
 	    #in Vx
@@ -129,7 +130,7 @@ class chip8(object):
             #if the two value are over 8 bit (255) carry the result in VF
             if (self.V[x_v] + self.V[x_y]) > 0xFF:
                 self.V[0xF] = 1
-                self.V[x_v] += (self.V[x_y]) & 0xFF)
+                self.V[x_v] += (self.V[x_y] & 0xFF)
             else:
                 self.V[x_v] += self.V[x_y]
                 self.V[0xF] = 0
@@ -244,7 +245,41 @@ class chip8(object):
 	    	    break
 	    if key_wait_pressed == 1:
 		self.pc += 2
+        elif (opcode & 0xF000) == 0xF000 and (opcode & 0x00FF) == 0x15:
+            #Fx15 - LD DT, Vx, set DT to the value of Vx.
+            self.delay_timer = self.V[v_x]
+            self.pc += 2
+        elif (opcode & 0xF000) == 0xF000 and (opcode & 0x000F) == 0x8:
+            #Fx18 Set sound timer = Vx
+            self.sound_timer = self.V[v_x]
+            self.pc += 2
+        elif (opcode & 0xF000) == 0xF000 and (opcode & 0x000F) == 0xE:
+            #Fx1E - ADD I, Vx
+            #Set I = I + Vx
+            self.I = self.I + self.V[v_x]
+            self.pc += 2
+        elif (opcode & 0xF000) == 0xF000 and (opcode & 0x000F) == 0x9:
+            #Fx29 - LD F, Vx
+            self.I = self.V[v_x]
+            self.pc += 2
+        elif (opcode & 0xF000) == 0xF000 and (opcode & 0x000F) == 0x3:
+            #Fx33 - LD B, Vx
+            #Store BCD rep of Vx in memory locaton I/I+1/I+2
+            self.memory[self.I] = (self.V[v_x] / 100) #hundreds digit
+            self.memory[self.I + 1] = ((self.V[v_x] % 100) / 10) #tens digit
+            self.memory[self.I + 2] = (self.V[v_x] % 10) # ones digit
+            self.pc += 2
+        elif (opcode & 0xF000) == 0xF000 and (opcode & 0x00FF) == 0x55:
+            #Fx55 - LD [I], Vx
+            #Store registers V0-Vx from memory starting at location I
+            for registers in xrange(v_x  + 1):
+                self.memory[self.I + registers] = self.V[registers]
+            self.pc += 2
 
+        elif (opcode & 0xF000) == 0xF000 and (opcode & 0x00FF) == 0x65:
+            for registers in xrange(v_x  + 1):
+                self.V[registers] = self.memory[self.I + registers]
+            self.pc += 2
         else:
             print('Unknown/Invalid opcode ' + str(opcode))
 
