@@ -43,6 +43,22 @@ class ChipEightCpu(object):
 
         #TODO: load font set.
 
+
+    def reset(self):
+        self.memory = [0] * 4096
+        self.V = [0] * 16
+        self.I = 0
+        self.pc = 0x200
+        self.gfx = [0] * (64*32)
+        self.update_screen = False
+        self.delay_timer = 0
+        self.sound_timer = 0
+        self.stack = []
+        self.key = [0] * 16
+
+        #TODO: load font set.
+
+
     def emulate_cycle(self):
         #One opcode is 2 bytes long. We need to fetch two
         #sucessive bytes and merge them to get the full opcode
@@ -54,8 +70,8 @@ class ChipEightCpu(object):
         #all the various opcodes. Maybe this can be cleaned up later since python
         #has no 'switch' statement.
 
-	#Vx and Vy are used very often here are some shortcuts
-	v_x = (opcode & 0x0F00) >> 8
+        #Vx and Vy are used very often here are some shortcuts
+        v_x = (opcode & 0x0F00) >> 8
         v_y = (opcode & 0x00F0) >> 4
         #Some cases we cannot rely on the first 4 bits to see what an opcode does.
         #If the first 4 bits are all zero we must look at the second 4 bits.
@@ -87,15 +103,15 @@ class ChipEightCpu(object):
             if self.V[x_v] == opcode & 0x00FF:
                 self.pc += 4
             else:
-		self.pc += 2
+                self.pc += 2
         elif (opcode & 0xF000) == 0x4000:
             #0x4000 == 4xkk, Skip next instruction if Vx != kk.
             if self.V[x_v] != opcode & 0x00FF:
                 self.pc += 4
             else:
-	        self.pc += 2
+                self.pc += 2
         elif (opcode & 0xF000) == 0x5000:
-	    #0x5000 = 5xy0 SE, skip next instruction if Vx = Vy
+        #0x5000 = 5xy0 SE, skip next instruction if Vx = Vy
             if self.V[x_v] == self.V[v_y]:
                 self.pc += 4
             else:
@@ -104,14 +120,14 @@ class ChipEightCpu(object):
             #0x6000 = 6xkk put value kk in to register Vx
             self.V[x_v] = opcode & 0x00FF
             self.pc += 2
-	elif (opcode & 0xF000) == 0x7000:
-	    #0x7000 = 7xkk Add Vx. Add value kk to register Vx and store value
-	    #in Vx
-	    self.V[x_v] += opcode & 0x00FF 
-	    self.pc += 2
-	elif (opcode & 0xF000) == 0x8000 and (opcode & 0x000F) == 0x0:
-	    #0x8000 = 8xy0 Set Vx = Vy
-            self.V[x_v] = selv.V[x_y]
+        elif (opcode & 0xF000) == 0x7000:
+            #0x7000 = 7xkk Add Vx. Add value kk to register Vx and store value
+            #in Vx
+            self.V[x_v] += opcode & 0x00FF 
+            self.pc += 2
+        elif (opcode & 0xF000) == 0x8000 and (opcode & 0x000F) == 0x0:
+        #0x8000 = 8xy0 Set Vx = Vy
+            self.V[x_v] = self.V[x_y]
             self.pc += 2
         elif (opcode & 0xF000) == 0x8000 and (opcode & 0x000F) == 0x1:
             #8xy1 Set Vx = Vx or Vy
@@ -142,7 +158,7 @@ class ChipEightCpu(object):
                 self.V[0xF] = 1 #NOT BORROW
             else:
                 self.V[0xF] = 0 #Brrow
-            self.V[x_v] -= self.V[x_y]
+                self.V[x_v] -= self.V[x_y]
             self.pc += 2
         elif (opcode & 0xF000) == 0x8000 and (opcode & 0x000F) == 0x6:
             #8xy6 - SHR Vx {, Vy}
@@ -217,34 +233,33 @@ class ChipEightCpu(object):
                     else:
                         self.V[0xF] = 0
             self.update_screen = True
-	    self.pc += 2
-
+            self.pc += 2
         elif (opcode & 0xF000) == 0xE000 and (opcode & 0x000F) == 0xE:
-	    #Ex9E - SKP Vx, skip next instruction if key is pressed.
-	    if self.keys[v_x] == 1:
-		self.pc += 4
-	    else:
-		self.pc += 2
+            #Ex9E - SKP Vx, skip next instruction if key is pressed.
+            if self.keys[v_x] == 1:
+                self.pc += 4
+            else:
+                self.pc += 2
         elif (opcode & 0xF000) == 0xE000 and (opcode & 0x000F) == 0x1:
-	    #ExA1, SKNP Vx skip next instruction if key is NOT pressed.
-	    if self.keys[v_x] != 1:
-		self.pc += 4
-	    else:
-		self.pc += 2
+            #ExA1, SKNP Vx skip next instruction if key is NOT pressed.
+            if self.keys[v_x] != 1:
+                self.pc += 4
+            else:
+                self.pc += 2
         elif (opcode & 0xF000) == 0xF000 and (opcode & 0x000F) == 0x7:
-	    #Fx07 set Vx = delay timer value
-	    self.V[v_x] = self.delay_timer
-	    self.pc += 2
+            #Fx07 set Vx = delay timer value
+            self.V[v_x] = self.delay_timer
+            self.pc += 2
         elif (opcode & 0xF000) == 0xF000 and (opcode & 0x000F) == 0xA:
-	    #Fx0A wait for a key press and store value in Vx
-	    key_wait_pressed = 0
-	    for key in self.keys:
-		if key == 1:
-		    self.V[v_x] = 1
-		    key_wait_pressed = 1
-	    	    break
-	    if key_wait_pressed == 1:
-		self.pc += 2
+            #Fx0A wait for a key press and store value in Vx
+            key_wait_pressed = 0
+            for key in self.keys:
+                if key == 1:
+                    self.V[v_x] = 1
+                    key_wait_pressed = 1
+                    break
+            if key_wait_pressed == 1:
+                self.pc += 2
         elif (opcode & 0xF000) == 0xF000 and (opcode & 0x00FF) == 0x15:
             #Fx15 - LD DT, Vx, set DT to the value of Vx.
             self.delay_timer = self.V[v_x]
