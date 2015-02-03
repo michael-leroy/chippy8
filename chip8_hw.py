@@ -43,6 +43,46 @@ class ChipEightCpu(object):
 
         #TODO: load font set.
 
+        self.instruction_dispatch {
+                '0x0000' : x0_dispatch,
+                '0x00E0' : cls,
+                '0x00EE' : ret,
+                '0x1000' : jp_addr,
+                '0x2000' : call_addr,
+                '0x3000' : se_vx_byte,
+                '0x4000' : sne_vx_byte,
+                '0x5000' : se_vx_vy,
+                '0x6000' : ld_vx_byte,
+                '0x7000' : add_vx_byte,
+                '0x8000' : x8_dispatch,
+                #'0x8000' : ld_vx_vy,
+                '0x8001' : or_vx_vy,
+                '0x8002' : and_vx_vy,
+                '0x8003' : xor_vx_vy,
+                '0x8004' : add_vx_vy,
+                '0x8005' : sub_vx_vy,
+                '0x8006' : shr_vx,
+                '0x8007' : subn_vx_vy,
+                '0x800E' : shl_vx,
+                '0x9000' : sne_vx_vy,
+                '0xA000' : ld_I,
+                '0xB000' : jp_v0,
+                '0xC000' : rnd_vx_byte,
+                '0xD000' : drw_vx_vy,
+                '0xE000' : xE_dispatch,
+                #'0xE00E' : skp_vx,
+                '0xE001' : sknp_vx,
+                '0xF000' : xF_dispatch,
+                #'0xF007' : ld_vx_dt,
+                '0xF00A' : ld_vx_k,
+                '0xF015' : ld_dt_vx,
+                '0xF018' : ld_st_vx,
+                '0xF01E' : add_I_vx,
+                '0xF029' : ld_f_vx,
+                '0xF033' : ld_b_vx,
+                '0xF055' : ld_i_vx,
+                '0xF065' : ld_vx_i
+        }
 
     def reset(self):
         self.memory = [0] * 4096
@@ -71,233 +111,10 @@ class ChipEightCpu(object):
         #has no 'switch' statement.
 
         #Vx and Vy are used very often here are some shortcuts
-        v_x = (opcode & 0x0F00) >> 8
-        v_y = (opcode & 0x00F0) >> 4
-        #Some cases we cannot rely on the first 4 bits to see what an opcode does.
-        #If the first 4 bits are all zero we must look at the second 4 bits.
-
-        if (opcode & 0xF000) == 0x0000:
-            #If the 4 first bits are zero...
-            if (opcode & 0x000F) == 0x0000:
-                #0x0000 == 0x00E0: Clears the screen
-                #Assuming clearing sets all gfx bits to zero
-                self.gfx = [0] * (64*32)
-                self.pc += 2
-                self.update_screen = True
-
-            elif (opcode & 0x000F) == 0x000E:
-                #0x000E == 0x00EE: returns from subroutine
-                self.pc = self.stack.pop()
-            #Ignore 0x0NNN it is not used.
-            else:
-                print('Unknown/Invalid opcode ' + str(opcode))
-        elif (opcode & 0xF000) == 0x1000:
-            #0x1000 == 0x1NNN Jump to location NNN
-            self.pc = opcode & 0x0FFF
-        elif (opcode & 0xF000) == 0x2000:
-            #0x2000 == 0x2NNN CALL addr, call subroutine at NNN
-            self.stack.append(self.pc)
-            self.pc = opcode & 0x0FFF
-        elif (opcode & 0xF000) == 0x3000:
-            #0x3000 == 3xkk, Skip next instruction if Vx == kk.
-            if self.V[x_v] == opcode & 0x00FF:
-                self.pc += 4
-            else:
-                self.pc += 2
-        elif (opcode & 0xF000) == 0x4000:
-            #0x4000 == 4xkk, Skip next instruction if Vx != kk.
-            if self.V[x_v] != opcode & 0x00FF:
-                self.pc += 4
-            else:
-                self.pc += 2
-        elif (opcode & 0xF000) == 0x5000:
-        #0x5000 = 5xy0 SE, skip next instruction if Vx = Vy
-            if self.V[x_v] == self.V[v_y]:
-                self.pc += 4
-            else:
-                self.pc += 2
-        elif (opcode & 0xF000) == 0x6000:
-            #0x6000 = 6xkk put value kk in to register Vx
-            self.V[x_v] = opcode & 0x00FF
-            self.pc += 2
-        elif (opcode & 0xF000) == 0x7000:
-            #0x7000 = 7xkk Add Vx. Add value kk to register Vx and store value
-            #in Vx
-            self.V[x_v] += opcode & 0x00FF 
-            self.pc += 2
-        elif (opcode & 0xF000) == 0x8000 and (opcode & 0x000F) == 0x0:
-        #0x8000 = 8xy0 Set Vx = Vy
-            self.V[x_v] = self.V[x_y]
-            self.pc += 2
-        elif (opcode & 0xF000) == 0x8000 and (opcode & 0x000F) == 0x1:
-            #8xy1 Set Vx = Vx or Vy
-            self.V[x_v] = self.V[x_v] | self.V[x_y]
-            self.pc += 2
-        elif (opcode & 0xF000) == 0x8000 and (opcode & 0x000F) == 0x2:
-            #8xy2 Set Vx = Vx and Vy
-            self.V[x_v] = self.V[x_v] & self.V[x_y]
-            self.pc += 2
-        elif (opcode & 0xF000) == 0x8000 and (opcode & 0x000F) == 0x3:
-            #8xy3 Set Vx = Vx XOR Vy
-            self.V[x_v] = self.V[x_v] ^ self.V[x_y]
-            self.pc += 2
-        elif (opcode & 0xF000) == 0x8000 and (opcode & 0x000F) == 0x4:
-            #8xy4 Set Vx = Vx + Vy set VF = carry is over 255
-            #if the two value are over 8 bit (255) carry the result in VF
-            if (self.V[x_v] + self.V[x_y]) > 0xFF:
-                self.V[0xF] = 1
-                self.V[x_v] += (self.V[x_y] & 0xFF)
-            else:
-                self.V[x_v] += self.V[x_y]
-                self.V[0xF] = 0
-            self.pc += 2
-        elif (opcode & 0xF000) == 0x8000 and (opcode & 0x000F) == 0x5:
-            #8xy5 - Sub Vx, Vy.
-            #Set Vx = Vx - Vy, set Vf = if it does NOT borrow
-            if (self.V[x_v] > self.V[x_y]):
-                self.V[0xF] = 1 #NOT BORROW
-            else:
-                self.V[0xF] = 0 #Brrow
-                self.V[x_v] -= self.V[x_y]
-            self.pc += 2
-        elif (opcode & 0xF000) == 0x8000 and (opcode & 0x000F) == 0x6:
-            #8xy6 - SHR Vx {, Vy}
-            #If the least significant bit of Vx is 1, set VF = 1
-            #otherwise 0. Then divide Vx by 2
-            if self.V[x_v] & 0b00000001 == 0b1:
-                self.V[0xF] = 1
-            else:
-                self.V[0xF] = 0
-            self.V[x_v] /= 2
-            self.pc += 2
-        elif (opcode & 0xF000) == 0x8000 and (opcode & 0x000F) == 0x7:
-            #Set Vx = Vy - Vx, set VF = NOT BORROW
-            if selv.V[x_y] > self.V[x_v]:
-                self.V[0xF] = 1 #NOT BOROW
-            else:
-                self.V[0xF] = 0
-            self.V[x_v] = selv.V[x_y] - self.V[x_v]
-            self.pc += 2
-        elif (opcode & 0xF000) == 0x8000 and (opcode & 0x000F) == 0xE:
-            #8xyE - SHL Vx {, Vy}
-            if (self.V[x_v] >> 7) == 1:
-                self.V[0xF] = 1
-            else:
-                self.V[0xF] = 0
-            self.V[x_v] = self.V[x_v] << 1
-            self.pc += 2
-        elif (opcode & 0xF000) == 0x9000:
-            #9xy0 - SNE Vx, Vy
-            #Skip next instruction if Vx != Vy
-            if self.V[x_v] != selv.V[x_y]:
-                self.pc += 4
-            else:
-                self.pc += 2
-        elif (opcode & 0xF000) == 0xA000:
-            #0xA000 == ANNN: Sets I to the address NNN
-            self.I = opcode & 0x0FFF
-            self.pc += 2
-        elif (opcode & 0xF000) == 0xB000:
-            #Bnnn - Jp V0, addr
-            self.pc = (opcode & 0x0FFF) + self.V[0x0]
-        elif (opcode & 0xF000) == 0xC000:
-            #Cxkk - RND Vx, byte
-            #Gen number between 0x0 and 0xFF and & it with the value of kk then
-            #store in Vx
-            self.V[x_v] = random.randrange(0x0, 0xFF) & (opcode & 0x00FF)
-            self.pc += 2
-        elif (opcode & 0xF000) == 0xD000:
-            # DRW Vx, Vy. nibble
-            drw_x = self.V[x_v]
-            drw_y = self.V[x_y]
-            drw_height = opcode & 0x000F
-            sprite_data = []
-            #set VF to zero because there has been no collision yet
-            self.V[0xF] = 0
-            #Read the sprite data from memory
-            for x in xrange(drw_height):
-                sprite_data.append(self.memory[self.I + x])
-            for sprite_row in xrange(len(sprite_data)):
-                #Sprites are always 8 pixels wide
-                for pixel_offset in xrange(8):
-                    location = drw_x + pixel_offset + ((drw_y + sprite_row) * 64)
-                    if (drw_y + sprite_row) >= 32 or (drw_x + pixel_offset -1) >= 64:
-                        #Don't do anything for pixels that are off the screen
-                        #I think they should loop to the other side.
-                        continue
-                    drw_mask = 1 << 8 - pixel_offset
-                    curr_pixel = (sprite_data[sprite_row] & mask) >> (8 - pixel_offset)
-                    self.gfx[location] ^= curr_pixel
-                    if self.gfx[location] == 0:
-                        self.V[0xF] = 1
-                    else:
-                        self.V[0xF] = 0
-            self.update_screen = True
-            self.pc += 2
-        elif (opcode & 0xF000) == 0xE000 and (opcode & 0x000F) == 0xE:
-            #Ex9E - SKP Vx, skip next instruction if key is pressed.
-            if self.keys[v_x] == 1:
-                self.pc += 4
-            else:
-                self.pc += 2
-        elif (opcode & 0xF000) == 0xE000 and (opcode & 0x000F) == 0x1:
-            #ExA1, SKNP Vx skip next instruction if key is NOT pressed.
-            if self.keys[v_x] != 1:
-                self.pc += 4
-            else:
-                self.pc += 2
-        elif (opcode & 0xF000) == 0xF000 and (opcode & 0x000F) == 0x7:
-            #Fx07 set Vx = delay timer value
-            self.V[v_x] = self.delay_timer
-            self.pc += 2
-        elif (opcode & 0xF000) == 0xF000 and (opcode & 0x000F) == 0xA:
-            #Fx0A wait for a key press and store value in Vx
-            key_wait_pressed = 0
-            for key in self.keys:
-                if key == 1:
-                    self.V[v_x] = 1
-                    key_wait_pressed = 1
-                    break
-            if key_wait_pressed == 1:
-                self.pc += 2
-        elif (opcode & 0xF000) == 0xF000 and (opcode & 0x00FF) == 0x15:
-            #Fx15 - LD DT, Vx, set DT to the value of Vx.
-            self.delay_timer = self.V[v_x]
-            self.pc += 2
-        elif (opcode & 0xF000) == 0xF000 and (opcode & 0x000F) == 0x8:
-            #Fx18 Set sound timer = Vx
-            self.sound_timer = self.V[v_x]
-            self.pc += 2
-        elif (opcode & 0xF000) == 0xF000 and (opcode & 0x000F) == 0xE:
-            #Fx1E - ADD I, Vx
-            #Set I = I + Vx
-            self.I = self.I + self.V[v_x]
-            self.pc += 2
-        elif (opcode & 0xF000) == 0xF000 and (opcode & 0x000F) == 0x9:
-            #Fx29 - LD F, Vx
-            self.I = self.V[v_x]
-            self.pc += 2
-        elif (opcode & 0xF000) == 0xF000 and (opcode & 0x000F) == 0x3:
-            #Fx33 - LD B, Vx
-            #Store BCD rep of Vx in memory locaton I/I+1/I+2
-            self.memory[self.I] = (self.V[v_x] / 100) #hundreds digit
-            self.memory[self.I + 1] = ((self.V[v_x] % 100) / 10) #tens digit
-            self.memory[self.I + 2] = (self.V[v_x] % 10) # ones digit
-            self.pc += 2
-        elif (opcode & 0xF000) == 0xF000 and (opcode & 0x00FF) == 0x55:
-            #Fx55 - LD [I], Vx
-            #Store registers V0-Vx from memory starting at location I
-            for registers in xrange(v_x  + 1):
-                self.memory[self.I + registers] = self.V[registers]
-            self.pc += 2
-
-        elif (opcode & 0xF000) == 0xF000 and (opcode & 0x00FF) == 0x65:
-            for registers in xrange(v_x  + 1):
-                self.V[registers] = self.memory[self.I + registers]
-            self.pc += 2
-        else:
-            print('Unknown/Invalid opcode ' + str(opcode))
-
+        self.v_x = (opcode & 0x0F00) >> 8
+        self.v_y = (opcode & 0x00F0) >> 4
+    
+        self.instruction_dispatch[(opcode & 0xF000)(opcode)]
      
         if self.delay_timer > 0:
             delay_timer -= 1
@@ -306,5 +123,402 @@ class ChipEightCpu(object):
                 print("BEEP!\n")
                 self.sound -= 1
 
+
+
+    def x0_dispatch(self, opcode):
+        '''
+        Runs the correct instruction for 0x00E0 and
+        0x00EE
+        We are ignoring 0x0NNN because its not often used.
+        '''
+        if (opcode & 0xF000) == 0x0000:
+            #If the 4 first bits are zero...
+            if (opcode & 0x000F) == 0x0000:
+                self.cls(opcode)
+            elif (opcode & 0x000F) == 0x000E:
+                self.ret(opcode)
+            else:
+                print('Unknown/Invalid opcode ' + str(opcode))
+
+    def cls(self, opcode):
+        '''
+        0x0000 == 0x00E0: Clears the screen
+        Assuming clearing sets all gfx bits to zero
+        '''
+        self.gfx = [0] * (64*32)
+        self.pc += 2
+        self.update_screen = True
+
+    def ret(self, opcode):
+        '''
+        0x000E == 0x00EE: returns from subroutine
+        '''
+        self.pc = self.stack.pop()
+
+    def jp_addr(self, opcode):
+        '''
+        0x1000 == 0x1NNN Jump to location NNN
+        '''
+        self.pc = opcode & 0x0FFF
+
+    def call_addr(self, opcode):
+        '''
+        0x2000 == 0x2NNN CALL addr, call subroutine at NNN
+        '''
+        self.stack.append(self.pc)
+        self.pc = opcode & 0x0FFF
+
+    def se_vx_byte(self, opcode):
+        '''
+        0x3000 == 3xkk, Skip next instruction if Vx == kk.
+        '''
+        if self.V[v_x] == opcode & 0x00FF:
+            self.pc += 4
+        else:
+            self.pc += 2
+
+    def sne_vx_byte(self, opcode):
+        '''
+        0x4000 == 4xkk, Skip next instruction if Vx != kk.
+        '''
+        if self.V[v_x] != opcode & 0x00FF:
+            self.pc += 4
+        else:
+            self.pc += 2
+
+    def se_vx_vy(self, opcode):
+        '''
+        0x5000 = 5xy0 SE, skip next instruction if Vx = Vy
+        '''
+        if self.V[v_x] == self.V[v_y]:
+            self.pc += 4
+        else:
+            self.pc += 2
+
+    def ld_vx_byte(self, opcode):
+        '''
+        0x6000 = 6xkk put value kk in to register Vx
+        '''
+        self.V[v_x] = opcode & 0x00FF
+        self.pc += 2
+
+    def add_vx_byte(self, opcode):
+        '''
+        0x7000 = 7xkk Add Vx. Add value kk to register Vx and store value
+        in Vx
+        '''
+        self.V[v_x] += opcode & 0x00FF 
+        self.pc += 2
+
+    def ld_vx_vy(self, opcode):
+        '''
+        0x8000 = 8xy0 Set Vx = Vy
+        '''
+        self.V[v_x] = self.V[x_y]
+        self.pc += 2
+
+    def or_vx_vy(self, opcode):
+        '''
+        8xy1 Set Vx = Vx or Vy
+        '''
+        self.V[v_x] = self.V[v_x] | self.V[x_y]
+        self.pc += 2
+
+    def and_vx_vy(self, opcode):
+        '''
+        8xy2 Set Vx = Vx and Vy
+        '''
+        self.V[v_x] = self.V[v_x] & self.V[x_y]
+        self.pc += 2
+
+    def xor_vx_vy(self, opcode):
+        '''
+        8xy3 Set Vx = Vx XOR Vy
+        '''
+        self.V[v_x] = self.V[v_x] ^ self.V[x_y]
+        self.pc += 2
+
+    def add_vx_vy(self, opcode):
+        '''
+        8xy4 Set Vx = Vx + Vy 
+        set VF = carry is over 255
+        If the two value are over 8 bit (255) carry the result in VF
+        '''
+        if (self.V[v_x] + self.V[x_y]) > 0xFF:
+            self.V[0xF] = 1
+            self.V[v_x] += (self.V[x_y] & 0xFF)
+        else:
+            self.V[v_x] += self.V[x_y]
+            self.V[0xF] = 0
+        self.pc += 2
+
+    def sub_vx_vy(self, opcode):
+        '''
+        8xy5 - Sub Vx, Vy.
+        Set Vx = Vx - Vy, set Vf = if it does NOT borrow
+        '''
+        if (self.V[v_x] > self.V[x_y]):
+            self.V[0xF] = 1 #NOT BORROW
+        else:
+            self.V[0xF] = 0 #Brrow
+            self.V[v_x] -= self.V[x_y]
+        self.pc += 2
+
+    def shr_vx(self, opcode):
+        '''
+        8xy6 - SHR Vx {, Vy}
+        If the least significant bit of Vx is 1, set VF = 1
+        otherwise 0. Then divide Vx by 2
+        '''
+        if self.V[v_x] & 0b00000001 == 0b1:
+            self.V[0xF] = 1
+        else:
+            self.V[0xF] = 0
+            self.V[v_x] /= 2
+        self.pc += 2
+
+    def subn_vx_vy(self, opcode):
+        '''
+        8xy7 - SUBN Vx, Vy
+        Set Vx = Vy - Vx, set VF = NOT BORROW
+        '''
+        if selv.V[x_y] > self.V[v_x]:
+            self.V[0xF] = 1 #NOT BOROW
+        else:
+            self.V[0xF] = 0
+            self.V[v_x] = selv.V[x_y] - self.V[v_x]
+        self.pc += 2
+
+    def shl_vx(self, opcoode):
+        '''
+        8xyE - SHL Vx {, Vy}
+        '''
+        if (self.V[v_x] >> 7) == 1:
+            self.V[0xF] = 1
+        else:
+            self.V[0xF] = 0
+            self.V[v_x] = self.V[v_x] << 1
+        self.pc += 2
+
+    def x8_dispatch(self, opcode):
+        '''
+        Runs the correct 0x8000 instruction.
+        '''
+        if (opcode & 0xF000) == 0x8000 and (opcode & 0x000F) == 0x0:
+            self.ld_vx_vy(opcode)
+        elif (opcode & 0xF000) == 0x8000 and (opcode & 0x000F) == 0x1:
+            self.or_vx_vy(opcode)
+        elif (opcode & 0xF000) == 0x8000 and (opcode & 0x000F) == 0x2:
+            self.and_vx_vy(opcode)
+        elif (opcode & 0xF000) == 0x8000 and (opcode & 0x000F) == 0x3:
+            self.xor_vx_vy(opcode)
+        elif (opcode & 0xF000) == 0x8000 and (opcode & 0x000F) == 0x4:
+            self.add_vx_vy(opcode)
+        elif (opcode & 0xF000) == 0x8000 and (opcode & 0x000F) == 0x5:
+            self.sub_vx_vy(opcode)
+        elif (opcode & 0xF000) == 0x8000 and (opcode & 0x000F) == 0x6:
+            self.shr_vx(opcode)
+        elif (opcode & 0xF000) == 0x8000 and (opcode & 0x000F) == 0x7:
+            self.subn_vx_vy(opcode)
+        elif (opcode & 0xF000) == 0x8000 and (opcode & 0x000F) == 0xE:
+            self.shl_vx(opcode)
+        else:
+            print('Unknown/Invalid opcode ' + str(opcode))
+
+    def sne_vx_vy(self, opcode):
+        '''
+        9xy0 - SNE Vx, Vy
+        Skip next instruction if Vx != Vy
+        '''
+        if self.V[v_x] != selv.V[x_y]:
+            self.pc += 4
+        else:
+            self.pc += 2
+
+    def ld_I(self, opcode):
+        '''
+        0xA000 == ANNN: Sets I to the address NNN
+        '''
+        self.I = opcode & 0x0FFF
+        self.pc += 2
+
+    def jp_v0(self, opcode):
+        '''
+        Bnnn - Jp V0, addr
+        '''
+        self.pc = (opcode & 0x0FFF) + self.V[0x0]
+
+    def rnd_vx_byte(self, opcode):
+        '''
+        Cxkk - RND Vx, byte
+        Gen number between 0x0 and 0xFF and & it with the value of kk then
+        store in Vx
+        '''
+        self.V[v_x] = random.randrange(0x0, 0xFF) & (opcode & 0x00FF)
+        self.pc += 2
+
+    def drw_vx_vy(self, opcode):
+        '''
+        DRW Vx, Vy. nibble
+        This is mostly based off other examples seen on 
+        the net.
+        TODO: test if this actually works
+        '''
+        drw_x = self.V[v_x]
+        drw_y = self.V[x_y]
+        drw_height = opcode & 0x000F
+        sprite_data = []
+        #set VF to zero because there has been no collision yet
+        self.V[0xF] = 0
+        #Read the sprite data from memory
+        for x in xrange(drw_height):
+            sprite_data.append(self.memory[self.I + x])
+        for sprite_row in xrange(len(sprite_data)):
+            #Sprites are always 8 pixels wide
+            for pixel_offset in xrange(8):
+                location = drw_x + pixel_offset + ((drw_y + sprite_row) * 64)
+                if (drw_y + sprite_row) >= 32 or (drw_x + pixel_offset -1) >= 64:
+                    #Don't do anything for pixels that are off the screen
+                    #I think they should loop to the other side....(?)
+                    continue
+                drw_mask = 1 << 8 - pixel_offset
+                curr_pixel = (sprite_data[sprite_row] & mask) >> (8 - pixel_offset)
+                self.gfx[location] ^= curr_pixel
+                if self.gfx[location] == 0:
+                    self.V[0xF] = 1
+                else:
+                    self.V[0xF] = 0
+        self.update_screen = True
+        self.pc += 2
+
+    def skp_vx(self, opcode):
+        '''
+        Ex9E - SKP Vx, skip next instruction if key is pressed.
+        '''
+        if self.keys[v_x] == 1:
+            self.pc += 4
+        else:
+            self.pc += 2
+
+    def sknp_vx(self, opcode):
+        '''
+        ExA1, SKNP Vx skip next instruction if key is NOT pressed.
+        '''
+        if self.keys[v_x] != 1:
+            self.pc += 4
+        else:
+            self.pc += 2
+
+
+    def xE_dispatch(self, opcode):
+        '''
+        Runs the correct 0xE000 instruction.
+        '''
+        if (opcode & 0xF000) == 0xE000 and (opcode & 0x000F) == 0xE:
+            skp_vx(opcode)
+        elif (opcode & 0xF000) == 0xE000 and (opcode & 0x000F) == 0x1:
+            sknp_vx(opcode)
+        else;
+            print('Unknown/Invalid opcode ' + str(opcode))
+
+    def ld_vx_dt(self, opcode):
+        '''
+        Fx07 set Vx = delay timer value
+        '''
+        self.V[v_x] = self.delay_timer
+        self.pc += 2
+    
+    def ld_vx_k(self, opcode):
+        '''
+        Fx0A wait for a key press and store value in Vx
+        '''
+        key_wait_pressed = 0
+        for key in self.keys:
+            if key == 1:
+                self.V[v_x] = 1
+                key_wait_pressed = 1
+                break
+        if key_wait_pressed == 1:
+            self.pc += 2
+
+    def ld_dt_vx(self, opcode):
+        '''
+        Fx15 - LD DT, Vx, set DT to the value of Vx.
+        '''
+        self.delay_timer = self.V[v_x]
+        self.pc += 2
+
+    def ld_st_vx(self, opcode):
+        '''
+        Fx18 Set sound timer = Vx
+        '''
+        self.sound_timer = self.V[v_x]
+        self.pc += 2
+
+    def add_I_vx(self, opcode):
+        '''
+        Fx1E - ADD I, Vx
+        Set I = I + Vx
+        '''
+        self.I = self.I + self.V[v_x]
+        self.pc += 2
+
+    def ld_f_vx(self, opcode):
+        '''
+        Fx29 - LD F, Vx
+        '''
+        self.I = self.V[v_x]
+        self.pc += 2
+
+    def ld_b_vx(self, opcode):
+        '''
+        Fx33 - LD B, Vx
+        Store BCD rep of Vx in memory locaton I/I+1/I+2
+        '''
+        self.memory[self.I] = (self.V[v_x] / 100) #hundreds digit
+        self.memory[self.I + 1] = ((self.V[v_x] % 100) / 10) #tens digit
+        self.memory[self.I + 2] = (self.V[v_x] % 10) # ones digit
+        self.pc += 2
+
+    def ld_i_vx(self, opcode):
+        '''
+        Fx55 - LD [I], Vx
+        Store registers V0-Vx from memory starting at location I.
+        '''
+        for registers in xrange(v_x + 1):
+            self.memory[self.I + registers] = self.V[registers]
+        self.pc += 2
+
+    def ld_vx_i(self, opcode):
+        '''
+        Fx65 - LD Vx, [I]
+        Read regisers V0-Vx from memory starting at location I.
+        '''
+        for registers in xrange(v_x  + 1):
+            self.V[registers] = self.memory[self.I + registers]
+        self.pc += 2
+
+
+    def xF_dispatch(self, opcode):
+        if (opcode & 0xF000) == 0xF000 and (opcode & 0x000F) == 0x7:
+            self.ld_vx_dt(opcode)
+        elif (opcode & 0xF000) == 0xF000 and (opcode & 0x000F) == 0xA:
+            self.ld_vx_k(opcode)
+        elif (opcode & 0xF000) == 0xF000 and (opcode & 0x00FF) == 0x15:
+            self.ld_dt_vx(opcode)
+        elif (opcode & 0xF000) == 0xF000 and (opcode & 0x000F) == 0x8:
+            self.ld_st_vx(opcode)
+        elif (opcode & 0xF000) == 0xF000 and (opcode & 0x000F) == 0xE:
+            self.add_I_vx(opcode)
+        elif (opcode & 0xF000) == 0xF000 and (opcode & 0x000F) == 0x9:
+            self.ld_f_vx(opcode)
+        elif (opcode & 0xF000) == 0xF000 and (opcode & 0x000F) == 0x3:
+            self.ld_b_vx(opcode)
+        elif (opcode & 0xF000) == 0xF000 and (opcode & 0x00FF) == 0x55:
+            self.ld_i_vx(opcode)
+        elif (opcode & 0xF000) == 0xF000 and (opcode & 0x00FF) == 0x65:
+            self.ld_vx_i(opcode)
+        else:
+            print('Unknown/Invalid opcode ' + str(opcode))
 
 
