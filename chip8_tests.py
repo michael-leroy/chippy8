@@ -1,6 +1,16 @@
 #!/usr/bin/python
 #uses pytest/py.test - pytest.org
 import chip8_hw
+import pytest
+import mock
+
+
+
+def initalize_system(ins, ins_two):
+    chip = chip8_hw.ChipEightCpu()
+    chip.memory[0x200] = ins
+    chip.memory[0x201] = ins_two
+    return chip
 
 def test_reset():
     chip = chip8_hw.ChipEightCpu()
@@ -31,27 +41,99 @@ def test_reset():
         assert k == 0
     chip = None
 
-def test_0x00E0():
-    chip = chip8_hw.ChipEightCpu()
-    chip.memory[0x200] = 0x00
-    chip.memory[0x201] = 0xE0
-    #set a few bits of gfx to see if
-    #the instruction clears them
-    chip.gfx = [1] * (32 * 64)
-    for gfx_bits in chip.gfx:
-        assert gfx_bits == 1
+def test_x0_dispatch():
+    '''
+
+    '''
+    chip = initalize_system(0x00, 0xE0)
+    chip.x0_dispatch = mock.MagicMock()
+    chip.instruction_dispatch[0x0000] = chip.x0_dispatch
     chip.emulate_cycle()
-    assert chip.pc == 514
-    for gfx_bits in chip.gfx:
-        assert gfx_bits == 0
-    assert chip.update_screen == True
+    chip.x0_dispatch.assert_called_once_with(0x00E0)
     chip = None
 
-def test_0x00EE():
-    chip = chip8_hw.ChipEightCpu()
-    chip.memory[0x200] = 0x00
-    chip.memory[0x201] = 0xEE
-    chip.memory[0x205] = 0xFF
-    chip.stack.append(0x205)
+    chip = initalize_system(0x00, 0xE0)
+    chip.cls = mock.MagicMock()
+    chip.instruction_dispatch[0x00E0] = chip.cls
     chip.emulate_cycle()
-    assert chip.pc == 0x205
+    chip.cls.assert_called_once_with(0x00E0)
+    chip = None
+
+    chip = initalize_system(0x00, 0xEE)
+    chip.ret = mock.MagicMock()
+    chip.instruction_dispatch[0x00EE] = chip.ret
+    chip.emulate_cycle()
+    chip.ret.assert_called_once_with(0x00EE)
+
+def test_00E0():
+    chip = initalize_system(0x00, 0xE0)
+    #chip.cls.assert_called_once_with()
+    #chip.x0_dispatch.assert_called_once_with()
+    #chip.x0_dispatch.assert_called_with(0x00E0)
+    #chip.cls.assert_called_with(0x00E0)
+    # chip = None
+    # chip = initalize_system(0x00, 0xE0)
+    # chip.gfx = [1] * (32 * 64)
+    # for gfx_bits in chip.gfx:
+    #     assert gfx_bits == 1
+    # assert chip.pc == 514
+    # for gfx_bits in chip.gfx:
+    #     assert gfx_bits == 0
+    # assert chip.update_screen == True
+
+    # chip = None
+
+
+# def test_0x00E0():
+#     chip = chip8_hw.ChipEightCpu()
+#     chip.memory[0x200] = 0x00
+#     chip.memory[0x201] = 0xE0
+#     #set a few bits of gfx to see if
+#     #the instruction clears them
+#     chip.gfx = [1] * (32 * 64)
+#     for gfx_bits in chip.gfx:
+#         assert gfx_bits == 1
+#     chip.emulate_cycle()
+#     assert chip.pc == 514
+#     for gfx_bits in chip.gfx:
+#         assert gfx_bits == 0
+#     assert chip.update_screen == True
+#     chip = None
+
+# def test_0x00EE():
+#     chip = chip8_hw.ChipEightCpu()
+#     chip.memory[0x200] = 0x00
+#     chip.memory[0x201] = 0xEE
+#     chip.memory[0x205] = 0xFF
+#     chip.stack.append(0x205)
+#     chip.emulate_cycle()
+#     assert chip.pc == 0x205
+#     chip = None
+# def test_1nnn():
+#     chip = chip8_hw.ChipEightCpu()
+#     chip.memory[0x200] = 0x15
+#     chip.memory[0x201] = 0x55
+#     chip.emulate_cycle()
+#     assert chip.pc == 0x555
+#     chip = None
+
+# def test_2NNN():
+#     chip = chip8_hw.ChipEightCpu()
+#     chip.memory[0x200] = 0x25
+#     chip.memory[0x201] = 0x55
+#     chip.emulate_cycle()
+#     assert chip.stack[0] == 0x200
+#     assert chip.pc == 0x555
+#     chip = None
+
+# def test_3xkk():
+#     chip = chip8_hw.ChipEightCpu()
+#     chip.memory[0x200] = 0x30
+#     chip.memory[0x201] = 0x55
+#     chip.V[0x0] == 0x55
+#     chip.emulate_cycle()
+#     assert chip.pc == 0x204
+#     chip.memory[0x202] = 0x30
+#     chip.memory[0x203] = 0x55
+#     chip.emulate_cycle()
+#     assert chip.pc == 0x204

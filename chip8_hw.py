@@ -43,45 +43,45 @@ class ChipEightCpu(object):
 
         #TODO: load font set.
 
-        self.instruction_dispatch {
-                '0x0000' : x0_dispatch,
-                '0x00E0' : cls,
-                '0x00EE' : ret,
-                '0x1000' : jp_addr,
-                '0x2000' : call_addr,
-                '0x3000' : se_vx_byte,
-                '0x4000' : sne_vx_byte,
-                '0x5000' : se_vx_vy,
-                '0x6000' : ld_vx_byte,
-                '0x7000' : add_vx_byte,
-                '0x8000' : x8_dispatch,
+        self.instruction_dispatch = {
+                0x0000 : self.x0_dispatch,
+                0x00E0 : self.cls,
+                0x00EE : self.ret,
+                0x1000 : self.jp_addr,
+                0x2000 : self.call_addr,
+                0x3000 : self.se_vx_byte,
+                0x4000 : self.sne_vx_byte,
+                0x5000 : self.se_vx_vy,
+                0x6000 : self.ld_vx_byte,
+                0x7000 : self.add_vx_byte,
+                0x8000 : self.x8_dispatch,
                 #'0x8000' : ld_vx_vy,
-                '0x8001' : or_vx_vy,
-                '0x8002' : and_vx_vy,
-                '0x8003' : xor_vx_vy,
-                '0x8004' : add_vx_vy,
-                '0x8005' : sub_vx_vy,
-                '0x8006' : shr_vx,
-                '0x8007' : subn_vx_vy,
-                '0x800E' : shl_vx,
-                '0x9000' : sne_vx_vy,
-                '0xA000' : ld_I,
-                '0xB000' : jp_v0,
-                '0xC000' : rnd_vx_byte,
-                '0xD000' : drw_vx_vy,
-                '0xE000' : xE_dispatch,
+                0x8001 : self.or_vx_vy,
+                0x8002 : self.and_vx_vy,
+                0x8003 : self.xor_vx_vy,
+                0x8004 : self.add_vx_vy,
+                0x8005 : self.sub_vx_vy,
+                0x8006 : self.shr_vx,
+                0x8007 : self.subn_vx_vy,
+                0x800E : self.shl_vx,
+                0x9000 : self.sne_vx_vy,
+                0xA000 : self.ld_I,
+                0xB000 : self.jp_v0,
+                0xC000 : self.rnd_vx_byte,
+                0xD000 : self.drw_vx_vy,
+                0xE000 : self.xE_dispatch,
                 #'0xE00E' : skp_vx,
-                '0xE001' : sknp_vx,
-                '0xF000' : xF_dispatch,
+                0xE001 : self.sknp_vx,
+                0xF000 : self.xF_dispatch,
                 #'0xF007' : ld_vx_dt,
-                '0xF00A' : ld_vx_k,
-                '0xF015' : ld_dt_vx,
-                '0xF018' : ld_st_vx,
-                '0xF01E' : add_I_vx,
-                '0xF029' : ld_f_vx,
-                '0xF033' : ld_b_vx,
-                '0xF055' : ld_i_vx,
-                '0xF065' : ld_vx_i
+                0xF00A : self.ld_vx_k,
+                0xF015 : self.ld_dt_vx,
+                0xF018 : self.ld_st_vx,
+                0xF01E : self.add_I_vx,
+                0xF029 : self.ld_f_vx,
+                0xF033 : self.ld_b_vx,
+                0xF055 : self.ld_i_vx,
+                0xF065 : self.ld_vx_i
         }
 
     def reset(self):
@@ -114,8 +114,10 @@ class ChipEightCpu(object):
         self.v_x = (opcode & 0x0F00) >> 8
         self.v_y = (opcode & 0x00F0) >> 4
     
-        self.instruction_dispatch[(opcode & 0xF000)(opcode)]
-     
+        try:
+            self.instruction_dispatch[(opcode & 0xF000)](opcode)
+        except KeyError:
+            ('Unknown/Invalid opcode ' + str(opcode))
         if self.delay_timer > 0:
             delay_timer -= 1
             if self.sound_timer == 1:
@@ -131,14 +133,10 @@ class ChipEightCpu(object):
         0x00EE
         We are ignoring 0x0NNN because its not often used.
         '''
-        if (opcode & 0xF000) == 0x0000:
-            #If the 4 first bits are zero...
-            if (opcode & 0x000F) == 0x0000:
-                self.cls(opcode)
-            elif (opcode & 0x000F) == 0x000E:
-                self.ret(opcode)
-            else:
-                print('Unknown/Invalid opcode ' + str(opcode))
+        try:
+            self.instruction_dispatch[(opcode & 0xF0FF)](opcode)
+        except KeyError:
+            print('Unknown/Invalid opcode ' + str(opcode))
 
     def cls(self, opcode):
         '''
@@ -304,25 +302,9 @@ class ChipEightCpu(object):
         '''
         Runs the correct 0x8000 instruction.
         '''
-        if (opcode & 0xF000) == 0x8000 and (opcode & 0x000F) == 0x0:
-            self.ld_vx_vy(opcode)
-        elif (opcode & 0xF000) == 0x8000 and (opcode & 0x000F) == 0x1:
-            self.or_vx_vy(opcode)
-        elif (opcode & 0xF000) == 0x8000 and (opcode & 0x000F) == 0x2:
-            self.and_vx_vy(opcode)
-        elif (opcode & 0xF000) == 0x8000 and (opcode & 0x000F) == 0x3:
-            self.xor_vx_vy(opcode)
-        elif (opcode & 0xF000) == 0x8000 and (opcode & 0x000F) == 0x4:
-            self.add_vx_vy(opcode)
-        elif (opcode & 0xF000) == 0x8000 and (opcode & 0x000F) == 0x5:
-            self.sub_vx_vy(opcode)
-        elif (opcode & 0xF000) == 0x8000 and (opcode & 0x000F) == 0x6:
-            self.shr_vx(opcode)
-        elif (opcode & 0xF000) == 0x8000 and (opcode & 0x000F) == 0x7:
-            self.subn_vx_vy(opcode)
-        elif (opcode & 0xF000) == 0x8000 and (opcode & 0x000F) == 0xE:
-            self.shl_vx(opcode)
-        else:
+        try:
+            self.instruction_dispatch[(opcode & 0xF00F)](opcode)
+        except KeyError:
             print('Unknown/Invalid opcode ' + str(opcode))
 
     def sne_vx_vy(self, opcode):
@@ -414,11 +396,9 @@ class ChipEightCpu(object):
         '''
         Runs the correct 0xE000 instruction.
         '''
-        if (opcode & 0xF000) == 0xE000 and (opcode & 0x000F) == 0xE:
-            skp_vx(opcode)
-        elif (opcode & 0xF000) == 0xE000 and (opcode & 0x000F) == 0x1:
-            sknp_vx(opcode)
-        else;
+        try:
+            self.instruction_dispatch[(opcode & 0xF00F)](opcode)
+        except KeyError:
             print('Unknown/Invalid opcode ' + str(opcode))
 
     def ld_vx_dt(self, opcode):
@@ -500,25 +480,9 @@ class ChipEightCpu(object):
 
 
     def xF_dispatch(self, opcode):
-        if (opcode & 0xF000) == 0xF000 and (opcode & 0x000F) == 0x7:
-            self.ld_vx_dt(opcode)
-        elif (opcode & 0xF000) == 0xF000 and (opcode & 0x000F) == 0xA:
-            self.ld_vx_k(opcode)
-        elif (opcode & 0xF000) == 0xF000 and (opcode & 0x00FF) == 0x15:
-            self.ld_dt_vx(opcode)
-        elif (opcode & 0xF000) == 0xF000 and (opcode & 0x000F) == 0x8:
-            self.ld_st_vx(opcode)
-        elif (opcode & 0xF000) == 0xF000 and (opcode & 0x000F) == 0xE:
-            self.add_I_vx(opcode)
-        elif (opcode & 0xF000) == 0xF000 and (opcode & 0x000F) == 0x9:
-            self.ld_f_vx(opcode)
-        elif (opcode & 0xF000) == 0xF000 and (opcode & 0x000F) == 0x3:
-            self.ld_b_vx(opcode)
-        elif (opcode & 0xF000) == 0xF000 and (opcode & 0x00FF) == 0x55:
-            self.ld_i_vx(opcode)
-        elif (opcode & 0xF000) == 0xF000 and (opcode & 0x00FF) == 0x65:
-            self.ld_vx_i(opcode)
-        else:
+        try:
+            self.instruction_dispatch[(opcode & 0xF0FF)](opcode)
+        except KeyError:
             print('Unknown/Invalid opcode ' + str(opcode))
 
 
