@@ -43,10 +43,19 @@ def test_reset():
 
 def test_x0_dispatch():
     '''
+    Test if the correct functions are called when a 0x00E0 or
+    0x00EE opcode is given.
 
+    Using mock to override the 'stock' functions and see if they
+    are called. Remember that you have to also update the reference
+    to the function is the instruction_dispatch dict or else it will
+    still run the 'stock' function since a reference to it still
+    exists.
     '''
     chip = initalize_system(0x00, 0xE0)
     chip.x0_dispatch = mock.MagicMock()
+    #updating the instruction_dispatch to ensure mock, not
+    #the original function is called.
     chip.instruction_dispatch[0x0000] = chip.x0_dispatch
     chip.emulate_cycle()
     chip.x0_dispatch.assert_called_once_with(0x00E0)
@@ -65,24 +74,166 @@ def test_x0_dispatch():
     chip.emulate_cycle()
     chip.ret.assert_called_once_with(0x00EE)
 
-def test_00E0():
+# def test_x8_dispatch():
+#     '''
+#     Test if the correct functions are called when a 0x00E0 or
+#     0x00EE opcode is given.
+
+#     Using mock to override the 'stock' functions and see if they
+#     are called. Remember that you have to also update the reference
+#     to the function is the instruction_dispatch dict or else it will
+#     still run the 'stock' function since a reference to it still
+#     exists.
+#     '''
+#     chip = initalize_system(0x81, 0x10)
+#     chip.x0_dispatch = mock.MagicMock()
+#     #updating the instruction_dispatch to ensure mock, not
+#     #the original function is called.
+#     chip.instruction_dispatch[0x0000] = chip.x0_dispatch
+#     chip.emulate_cycle()
+#     chip.x0_dispatch.assert_called_once_with(0x00E0)
+#     chip = None
+
+#     chip = initalize_system(0x00, 0xE0)
+#     chip.cls = mock.MagicMock()
+#     chip.instruction_dispatch[0x00E0] = chip.cls
+#     chip.emulate_cycle()
+#     chip.cls.assert_called_once_with(0x00E0)
+#     chip = None
+
+#     chip = initalize_system(0x00, 0xEE)
+#     chip.ret = mock.MagicMock()
+#     chip.instruction_dispatch[0x00EE] = chip.ret
+#     chip.emulate_cycle()
+#     chip.ret.assert_called_once_with(0x00EE)
+
+def test_cls():
+    '''
+    test if screen is cleared properly
+    '''
     chip = initalize_system(0x00, 0xE0)
-    #chip.cls.assert_called_once_with()
-    #chip.x0_dispatch.assert_called_once_with()
-    #chip.x0_dispatch.assert_called_with(0x00E0)
-    #chip.cls.assert_called_with(0x00E0)
-    # chip = None
-    # chip = initalize_system(0x00, 0xE0)
-    # chip.gfx = [1] * (32 * 64)
-    # for gfx_bits in chip.gfx:
-    #     assert gfx_bits == 1
-    # assert chip.pc == 514
-    # for gfx_bits in chip.gfx:
-    #     assert gfx_bits == 0
-    # assert chip.update_screen == True
+    chip.gfx = [1] * (64*32)
+    chip.emulate_cycle()
+    for bits in chip.gfx:
+        assert bits == 0
+    assert chip.pc == 514
+    assert chip.update_screen == True
+    chip = None
 
-    # chip = None
+def test_ret():
+    '''
+    test if the top item in the stack is returned
+    to the program counter.
+    '''
+    chip = initalize_system(0x00, 0xEE)
+    #add someting to the stack
+    chip.stack.append(514)
+    chip.emulate_cycle()
+    assert chip.pc == 514
+    assert len(chip.stack) == 0
+    chip = None
 
+def test_jmp_addr():
+    '''
+    test if program counter is set to the jump
+    '''
+    chip = initalize_system(0x12, 0x00)
+    chip.emulate_cycle()
+    assert chip.pc == 512
+    chip = None
+
+def test_call_addr():
+    chip = initalize_system(0x22, 0x1c)
+    chip.emulate_cycle()
+    assert chip.stack[0] == 512
+    assert chip.pc == 540
+    chip = None
+
+def test_se_vx_byte():
+    '''
+    test skip next instruction if v_x == kk
+    '''
+    chip = initalize_system(0x31, 0x22)
+    chip.V[1] = 0x22
+    chip.emulate_cycle()
+    assert chip.pc == 516
+    chip = None
+
+    chip = initalize_system(0x31, 0x22)
+    chip.V[1] = 0x23
+    chip.emulate_cycle()
+    assert chip.pc == 514
+    chip = None
+
+def test_ne_vx_byte():
+    '''
+    test skip next instruction if v_x != kk
+    '''
+    chip = initalize_system(0x41, 0x22)
+    chip.V[1] = 0x22
+    chip.emulate_cycle()
+    assert chip.pc == 514
+    chip = None
+
+    chip = initalize_system(0x41, 0x22)
+    chip.V[1] = 0x23
+    chip.emulate_cycle()
+    assert chip.pc == 516
+    chip = None
+
+def test_se_vx_vy():
+    '''
+    test skip next instruction if vx == vy
+    '''
+    chip = initalize_system(0x51, 0x20)
+    chip.V[1] = 0xFF
+    chip.V[2] = 0xFF
+    chip.emulate_cycle()
+    assert chip.pc == 516
+    chip = None
+
+    chip = initalize_system(0x51, 0x20)
+    chip.V[1] = 0xFF
+    chip.V[2] = 0xFE
+    chip.emulate_cycle()
+    assert chip.pc == 514
+    chip = None
+
+def test_ld_vx_byte():
+    '''
+    test putting value kk into register vx
+    '''
+    chip = initalize_system(0x61, 0xFF)
+    assert chip.V[1] == 0
+    chip.emulate_cycle()
+    assert chip.V[1] == 0xFF
+    assert chip.pc == 514
+    chip = None
+
+def test_add_vx_byte():
+    '''
+    test adding to vx
+    '''
+    chip = initalize_system(0x71, 0x05)
+    chip.V[1] = 0x01
+    chip.emulate_cycle()
+    assert chip.V[1] == 0x06
+    assert chip.pc == 514
+    chip = None
+
+def test_ld_vx_vy():
+    '''
+    test setting vx to the value of vy.
+    '''
+    chip = initalize_system(0x81, 0x20)
+    chip.V[1] == 0x00
+    chip.V[2] == 0xFE
+    chip.emulate_cycle()
+    print(chip.V[1])
+    print(chip.V[2])
+    assert chip.V[1] == 0xFE
+    assert chip.pc == 514
+    chip = None
 
 # def test_0x00E0():
 #     chip = chip8_hw.ChipEightCpu()

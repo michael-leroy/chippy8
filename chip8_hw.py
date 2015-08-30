@@ -170,7 +170,7 @@ class ChipEightCpu(object):
         '''
         0x3000 == 3xkk, Skip next instruction if Vx == kk.
         '''
-        if self.V[v_x] == opcode & 0x00FF:
+        if self.V[self.v_x] == opcode & 0x00FF:
             self.pc += 4
         else:
             self.pc += 2
@@ -179,7 +179,7 @@ class ChipEightCpu(object):
         '''
         0x4000 == 4xkk, Skip next instruction if Vx != kk.
         '''
-        if self.V[v_x] != opcode & 0x00FF:
+        if self.V[self.v_x] != opcode & 0x00FF:
             self.pc += 4
         else:
             self.pc += 2
@@ -188,7 +188,7 @@ class ChipEightCpu(object):
         '''
         0x5000 = 5xy0 SE, skip next instruction if Vx = Vy
         '''
-        if self.V[v_x] == self.V[v_y]:
+        if self.V[self.v_x] == self.V[self.v_y]:
             self.pc += 4
         else:
             self.pc += 2
@@ -197,7 +197,7 @@ class ChipEightCpu(object):
         '''
         0x6000 = 6xkk put value kk in to register Vx
         '''
-        self.V[v_x] = opcode & 0x00FF
+        self.V[self.v_x] = opcode & 0x00FF
         self.pc += 2
 
     def add_vx_byte(self, opcode):
@@ -205,14 +205,14 @@ class ChipEightCpu(object):
         0x7000 = 7xkk Add Vx. Add value kk to register Vx and store value
         in Vx
         '''
-        self.V[v_x] += opcode & 0x00FF 
+        self.V[self.v_x] += opcode & 0x00FF 
         self.pc += 2
 
     def ld_vx_vy(self, opcode):
         '''
         0x8000 = 8xy0 Set Vx = Vy
         '''
-        self.V[v_x] = self.V[x_y]
+        self.V[self.v_x] = self.V[self.v_y]
         self.pc += 2
 
     def or_vx_vy(self, opcode):
@@ -302,10 +302,13 @@ class ChipEightCpu(object):
         '''
         Runs the correct 0x8000 instruction.
         '''
-        try:
-            self.instruction_dispatch[(opcode & 0xF00F)](opcode)
-        except KeyError:
-            print('Unknown/Invalid opcode ' + str(opcode))
+        if (opcode & 0xF00F) == 0x8000:
+            self.ld_vx_vy(opcode)
+        else:
+            try:
+                self.instruction_dispatch[(opcode & 0xF00F)](opcode)
+            except KeyError:
+                print('Unknown/Invalid opcode ' + str(opcode))
 
     def sne_vx_vy(self, opcode):
         '''
