@@ -235,6 +235,28 @@ def test_ld_vx_vy():
     assert chip.pc == 514
     chip = None
 
+def test_rom_load():
+    chip = chip8_hw.ChipEightCpu()
+    chip.load_rom("breakout.ch8")
+
+    memory_offset = 512
+
+    assert chip.memory[memory_offset] > 0
+
+    print(str(chip.memory[memory_offset]))
+
+    while chip.memory[memory_offset] > 0:
+        opcode = chip.get_opcode()
+
+        memory_offset += 2
+        chip.pc += 2
+
+        print("Opcode: " + "0x%0.2X" % opcode)
+        assert opcode
+
+
+
+
 # def test_0x00E0():
 #     chip = chip8_hw.ChipEightCpu()
 #     chip.memory[0x200] = 0x00
