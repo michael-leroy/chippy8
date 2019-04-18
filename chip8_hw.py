@@ -10,7 +10,7 @@ class ChipEightCpu(object):
         0x050-0x0A0 - Used for the built in 4x5 pixel font set (0-F)
         0x200-0xFFF - Program ROM and work RAM
         '''
-        self.memory = [0] * 4096
+        self.memory = bytearray(4096)
 
         #Chip8 has 15, 8-bit registers and a 16th register used as a 
         #'carry flag.'
@@ -98,14 +98,32 @@ class ChipEightCpu(object):
 
         #TODO: load font set.
 
+    def load_rom(self, rom_file_path):
+        #0x200-0xFFF - Program ROM and work RAM
+        #0x200 == 512
+        memory_offset = 512
 
-    def emulate_cycle(self):
+        with open(rom_file_path, "rb") as f:
+            byte = f.read(1)
+            while byte != b"":
+                self.memory[memory_offset] = byte
+                memory_offset += 1
+                byte = f.read(1)
+
+
+    def get_opcode(self):
         #One opcode is 2 bytes long. We need to fetch two
         #sucessive bytes and merge them to get the full opcode
         #First we add 8 bits to the end so its 2bytes long, then merge the second
-        #half
-        opcode = self.memory[self.pc] << 8 | self.memory[self.pc + 1] 
+        #half 
+        opcode = self.memory[self.pc] << 8 | self.memory[self.pc + 1]
 
+        if (opcode & 0xF000) in self.instruction_dispatch:
+            return opcode
+
+    def emulate_cycle(self):
+
+        opcode = self.get_opcode()
         #Now that we have the opcode we need one big if statement to handle
         #all the various opcodes. Maybe this can be cleaned up later since python
         #has no 'switch' statement.
@@ -114,10 +132,11 @@ class ChipEightCpu(object):
         self.v_x = (opcode & 0x0F00) >> 8
         self.v_y = (opcode & 0x00F0) >> 4
     
-        try:
+        if opcode:
             self.instruction_dispatch[(opcode & 0xF000)](opcode)
-        except KeyError:
-            ('Unknown/Invalid opcode ' + str(opcode))
+        else:
+            print('Unknown/Invalid opcode ' + "0x%0.2X" % opcode)
+        #Decrement timer.
         if self.delay_timer > 0:
             delay_timer -= 1
             if self.sound_timer == 1:
