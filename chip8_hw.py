@@ -10,7 +10,8 @@ class ChipEightCpu(object):
         0x050-0x0A0 - Used for the built in 4x5 pixel font set (0-F)
         0x200-0xFFF - Program ROM and work RAM
         '''
-        self.memory = bytearray(4096)
+        self.CHIP8MAXMEM = 4096
+        self.memory = bytearray(self.CHIP8MAXMEM)
 
         #Chip8 has 15, 8-bit registers and a 16th register used as a 
         #'carry flag.'
@@ -85,7 +86,7 @@ class ChipEightCpu(object):
         }
 
     def reset(self):
-        self.memory = [0] * 4096
+        self.memory = bytearray(self.CHIP8MAXMEM)
         self.V = [0] * 16
         self.I = 0
         self.pc = 0x200
@@ -138,7 +139,7 @@ class ChipEightCpu(object):
             print('Unknown/Invalid opcode ' + "0x%0.2X" % opcode)
         #Decrement timer.
         if self.delay_timer > 0:
-            delay_timer -= 1
+            self.delay_timer -= 1
             if self.sound_timer == 1:
                 #TODO: have sound and graphics
                 print("BEEP!\n")
@@ -238,21 +239,21 @@ class ChipEightCpu(object):
         '''
         8xy1 Set Vx = Vx or Vy
         '''
-        self.V[v_x] = self.V[v_x] | self.V[x_y]
+        self.V[self.v_x] = self.V[self.v_x] | self.V[self.v_y]
         self.pc += 2
 
     def and_vx_vy(self, opcode):
         '''
         8xy2 Set Vx = Vx and Vy
         '''
-        self.V[v_x] = self.V[v_x] & self.V[x_y]
+        self.V[self.v_x] = self.V[self.v_x] & self.V[self.v_y]
         self.pc += 2
 
     def xor_vx_vy(self, opcode):
         '''
         8xy3 Set Vx = Vx XOR Vy
         '''
-        self.V[v_x] = self.V[v_x] ^ self.V[x_y]
+        self.V[self.v_x] = self.V[self.v_x] ^ self.V[self.v_y]
         self.pc += 2
 
     def add_vx_vy(self, opcode):
@@ -261,11 +262,11 @@ class ChipEightCpu(object):
         set VF = carry is over 255
         If the two value are over 8 bit (255) carry the result in VF
         '''
-        if (self.V[v_x] + self.V[x_y]) > 0xFF:
+        if (self.V[self.v_x] + self.V[self.v_y]) > 0xFF:
             self.V[0xF] = 1
-            self.V[v_x] += (self.V[x_y] & 0xFF)
+            self.V[self.v_x] += (self.V[self.v_y] & 0xFF)
         else:
-            self.V[v_x] += self.V[x_y]
+            self.V[self.v_x] += self.V[self.v_y]
             self.V[0xF] = 0
         self.pc += 2
 
@@ -274,11 +275,11 @@ class ChipEightCpu(object):
         8xy5 - Sub Vx, Vy.
         Set Vx = Vx - Vy, set Vf = if it does NOT borrow
         '''
-        if (self.V[v_x] > self.V[x_y]):
+        if (self.V[self.v_x] > self.V[self.v_y]):
             self.V[0xF] = 1 #NOT BORROW
         else:
             self.V[0xF] = 0 #Brrow
-            self.V[v_x] -= self.V[x_y]
+            self.V[self.v_x] -= self.V[self.v_y]
         self.pc += 2
 
     def shr_vx(self, opcode):
@@ -287,11 +288,11 @@ class ChipEightCpu(object):
         If the least significant bit of Vx is 1, set VF = 1
         otherwise 0. Then divide Vx by 2
         '''
-        if self.V[v_x] & 0b00000001 == 0b1:
+        if self.V[self.v_x] & 0b00000001 == 0b1:
             self.V[0xF] = 1
         else:
             self.V[0xF] = 0
-            self.V[v_x] /= 2
+            self.V[self.v_x] /= 2
         self.pc += 2
 
     def subn_vx_vy(self, opcode):
@@ -299,22 +300,22 @@ class ChipEightCpu(object):
         8xy7 - SUBN Vx, Vy
         Set Vx = Vy - Vx, set VF = NOT BORROW
         '''
-        if selv.V[x_y] > self.V[v_x]:
+        if self.V[self.x_y] > self.V[self.v_x]:
             self.V[0xF] = 1 #NOT BOROW
         else:
             self.V[0xF] = 0
-            self.V[v_x] = selv.V[x_y] - self.V[v_x]
+            self.V[self.v_x] = self.V[self.v_y] - self.V[self.v_x]
         self.pc += 2
 
     def shl_vx(self, opcoode):
         '''
         8xyE - SHL Vx {, Vy}
         '''
-        if (self.V[v_x] >> 7) == 1:
+        if (self.V[self.v_x] >> 7) == 1:
             self.V[0xF] = 1
         else:
             self.V[0xF] = 0
-            self.V[v_x] = self.V[v_x] << 1
+            self.V[self.v_x] = self.V[self.v_x] << 1
         self.pc += 2
 
     def x8_dispatch(self, opcode):
@@ -358,7 +359,7 @@ class ChipEightCpu(object):
         Gen number between 0x0 and 0xFF and & it with the value of kk then
         store in Vx
         '''
-        self.V[v_x] = random.randrange(0x0, 0xFF) & (opcode & 0x00FF)
+        self.V[self.v_x] = random.randrange(0x0, 0xFF) & (opcode & 0x00FF)
         self.pc += 2
 
     def drw_vx_vy(self, opcode):
@@ -368,8 +369,8 @@ class ChipEightCpu(object):
         the net.
         TODO: test if this actually works
         '''
-        drw_x = self.V[v_x]
-        drw_y = self.V[x_y]
+        drw_x = self.V[self.v_x]
+        drw_y = self.V[self.v_y]
         drw_height = opcode & 0x000F
         sprite_data = []
         #set VF to zero because there has been no collision yet
@@ -386,12 +387,16 @@ class ChipEightCpu(object):
                     #I think they should loop to the other side....(?)
                     continue
                 drw_mask = 1 << 8 - pixel_offset
-                curr_pixel = (sprite_data[sprite_row] & mask) >> (8 - pixel_offset)
-                self.gfx[location] ^= curr_pixel
-                if self.gfx[location] == 0:
-                    self.V[0xF] = 1
-                else:
-                    self.V[0xF] = 0
+                curr_pixel = (sprite_data[sprite_row] & drw_mask) >> (8 - pixel_offset)
+                try:
+                    self.gfx[location] ^= curr_pixel
+                    if self.gfx[location] == 0:
+                        self.V[0xF] = 1
+                    else:
+                        self.V[0xF] = 0
+                except IndexError:
+                    print("Pixel out of bounds.")
+                
         self.update_screen = True
         self.pc += 2
 
@@ -408,7 +413,7 @@ class ChipEightCpu(object):
         '''
         ExA1, SKNP Vx skip next instruction if key is NOT pressed.
         '''
-        if self.keys[v_x] != 1:
+        if self.key[self.v_x] != 1:
             self.pc += 4
         else:
             self.pc += 2
@@ -435,9 +440,9 @@ class ChipEightCpu(object):
         Fx0A wait for a key press and store value in Vx
         '''
         key_wait_pressed = 0
-        for key in self.keys:
-            if key == 1:
-                self.V[v_x] = 1
+        for k in self.key:
+            if k == 1:
+                self.V[self.v_x] = 1
                 key_wait_pressed = 1
                 break
         if key_wait_pressed == 1:
@@ -447,14 +452,14 @@ class ChipEightCpu(object):
         '''
         Fx15 - LD DT, Vx, set DT to the value of Vx.
         '''
-        self.delay_timer = self.V[v_x]
+        self.delay_timer = self.V[self.v_x]
         self.pc += 2
 
     def ld_st_vx(self, opcode):
         '''
         Fx18 Set sound timer = Vx
         '''
-        self.sound_timer = self.V[v_x]
+        self.sound_timer = self.V[self.v_x]
         self.pc += 2
 
     def add_I_vx(self, opcode):
@@ -462,14 +467,14 @@ class ChipEightCpu(object):
         Fx1E - ADD I, Vx
         Set I = I + Vx
         '''
-        self.I = self.I + self.V[v_x]
+        self.I = self.I + self.V[self.v_x]
         self.pc += 2
 
     def ld_f_vx(self, opcode):
         '''
         Fx29 - LD F, Vx
         '''
-        self.I = self.V[v_x]
+        self.I = self.V[self.v_x]
         self.pc += 2
 
     def ld_b_vx(self, opcode):
@@ -477,9 +482,9 @@ class ChipEightCpu(object):
         Fx33 - LD B, Vx
         Store BCD rep of Vx in memory locaton I/I+1/I+2
         '''
-        self.memory[self.I] = (self.V[v_x] / 100) #hundreds digit
-        self.memory[self.I + 1] = ((self.V[v_x] % 100) / 10) #tens digit
-        self.memory[self.I + 2] = (self.V[v_x] % 10) # ones digit
+        self.memory[self.I] = (self.V[self.v_x] / 100) #hundreds digit
+        self.memory[self.I + 1] = ((self.V[self.v_x] % 100) / 10) #tens digit
+        self.memory[self.I + 2] = (self.V[self.v_x] % 10) # ones digit
         self.pc += 2
 
     def ld_i_vx(self, opcode):
@@ -487,7 +492,7 @@ class ChipEightCpu(object):
         Fx55 - LD [I], Vx
         Store registers V0-Vx from memory starting at location I.
         '''
-        for registers in xrange(v_x + 1):
+        for registers in xrange(self.v_x + 1):
             self.memory[self.I + registers] = self.V[registers]
         self.pc += 2
 
@@ -496,7 +501,7 @@ class ChipEightCpu(object):
         Fx65 - LD Vx, [I]
         Read regisers V0-Vx from memory starting at location I.
         '''
-        for registers in xrange(v_x  + 1):
+        for registers in xrange(self.v_x  + 1):
             self.V[registers] = self.memory[self.I + registers]
         self.pc += 2
 
