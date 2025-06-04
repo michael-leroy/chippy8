@@ -75,7 +75,7 @@ class ChipEightCpu(object):
                 #'0xE00E' : skp_vx,
                 0xE001 : self.sknp_vx,
                 0xF000 : self.xF_dispatch,
-                #'0xF007' : ld_vx_dt,
+                0xF007 : self.ld_vx_dt,
                 0xF00A : self.ld_vx_k,
                 0xF015 : self.ld_dt_vx,
                 0xF018 : self.ld_st_vx,

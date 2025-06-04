@@ -6,7 +6,7 @@ import math
 import sdl2
 import sdl2.ext
 import ctypes
-from sdl2 import messagebox
+
 
 import chip8_hw
 
@@ -40,8 +40,14 @@ KEY_MAP = {
 
 
 def beep():
-    """Emit a simple system beep."""
-    print("\a", end="", flush=True)
+    """Play a short beep using the best available method."""
+    try:
+        import winsound
+
+        winsound.Beep(1000, 100)
+    except Exception:
+        # Fallback to console bell if platform support is missing
+        print("\a", end="", flush=True)
 
 
 def select_rom():
@@ -131,41 +137,31 @@ def main():
     def toggle_debug():
         nonlocal debug_root, debug_label
         if debug_root:
-            question = b"Disable debug window?"
-        else:
-            question = b"Enable debug window?"
-
-        buttons = (
-            messagebox.SDL_MessageBoxButtonData(
-                messagebox.SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT, 1, b"Yes"
-            ),
-            messagebox.SDL_MessageBoxButtonData(
-                messagebox.SDL_MESSAGEBOX_BUTTON_ESCAPEKEY_DEFAULT, 0, b"No"
-            ),
-        )
-        msgdata = messagebox.SDL_MessageBoxData(
-            flags=messagebox.SDL_MESSAGEBOX_INFORMATION,
-            window=window,
-            title=b"Debug",
-            message=question,
-            numbuttons=len(buttons),
-            buttons=(messagebox.SDL_MessageBoxButtonData * len(buttons))(*buttons),
-            colorScheme=None,
-        )
-        buttonid = ctypes.c_int()
-        messagebox.SDL_ShowMessageBox(ctypes.byref(msgdata), ctypes.byref(buttonid))
-        if buttonid.value != 1:
-            return
-
-        if debug_root:
             debug_root.destroy()
             debug_root = None
             return
 
-        debug_root = tk.Tk()
+        debug_root = tk.Toplevel(control_root)
         debug_root.title("Debug")
         debug_label = tk.Label(debug_root, text="")
         debug_label.pack()
+        def on_close():
+            nonlocal debug_root
+            debug_root.destroy()
+            debug_root = None
+        debug_root.protocol("WM_DELETE_WINDOW", on_close)
+
+    control_root = tk.Tk()
+    control_root.title("Chippy8")
+    menubar = tk.Menu(control_root)
+    settings_menu = tk.Menu(menubar, tearoff=0)
+    settings_menu.add_command(label="Toggle Debug", command=toggle_debug)
+    menubar.add_cascade(label="Settings", menu=settings_menu)
+    control_root.config(menu=menubar)
+    def on_control_close():
+        nonlocal running
+        running = False
+    control_root.protocol("WM_DELETE_WINDOW", on_control_close)
     while running:
         for event in sdl2.ext.get_events():
             if event.type == sdl2.SDL_QUIT:
@@ -196,7 +192,9 @@ def main():
 
         if debug_root and now - last_debug >= 1:
             cps = cycles / (now - last_debug)
-            regs = " ".join(f"V{idx:X}:{val:02X}" for idx, val in enumerate(chip8.V))
+            regs = " ".join(
+                f"V{idx:X}:{val:02X}" for idx, val in enumerate(chip8.V)
+            )
             debug_label.config(
                 text=(
                     f"PC: {chip8.pc:03X} I:{chip8.I:03X}\n"
@@ -206,7 +204,15 @@ def main():
             )
             cycles = 0
             last_debug = now
-            debug_root.update()
+            try:
+                debug_root.update()
+            except tk.TclError:
+                debug_root = None
+
+        try:
+            control_root.update()
+        except tk.TclError:
+            running = False
 
         sdl2.SDL_Delay(1)
 
