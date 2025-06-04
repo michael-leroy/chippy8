@@ -1,57 +1,91 @@
-
-import random
 import time
+import tkinter as tk
+from tkinter import filedialog
+
+import sdl2
+import sdl2.ext
+
 import chip8_hw
-import pprint
 
-import pygame
-import pygame.gfxdraw
+# Size of the CHIP-8 display
+CHIP8_WIDTH = 64
+CHIP8_HEIGHT = 32
 
-def timed_loop():
-    print('ran')
-    time.sleep(random.randint(1, 10) / 1000)
+# Each CHIP-8 pixel will be drawn as a square of this size
+SCALE = 10
+
+WINDOW_WIDTH = CHIP8_WIDTH * SCALE
+WINDOW_HEIGHT = CHIP8_HEIGHT * SCALE
 
 
-if __name__ == '__main__':
+def select_rom():
+    """Open a file dialog and return the selected ROM path."""
+    root = tk.Tk()
+    root.withdraw()
+    path = filedialog.askopenfilename(title="Select CHIP-8 ROM")
+    root.destroy()
+    return path
 
-    width = 64
-    height = 32
 
-    screen = pygame.display.set_mode((320,160))
+def draw_screen(renderer, chip8):
+    """Render the current CHIP-8 framebuffer."""
+    sdl2.SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255)
+    sdl2.SDL_RenderClear(renderer)
 
-    time_since_last_cycle = 0
-    loop_count = 0
+    for y in range(CHIP8_HEIGHT):
+        for x in range(CHIP8_WIDTH):
+            pixel = chip8.gfx[y * CHIP8_WIDTH + x]
+            if pixel:
+                sdl2.SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255)
+            else:
+                sdl2.SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255)
+            rect = sdl2.SDL_Rect(x * SCALE, y * SCALE, SCALE, SCALE)
+            sdl2.SDL_RenderFillRect(renderer, rect)
+    sdl2.SDL_RenderPresent(renderer)
+
+
+def main():
+    rom_path = select_rom()
+    if not rom_path:
+        print("No ROM selected. Exiting.")
+        return
 
     chip8 = chip8_hw.ChipEightCpu()
-    #chip8.load_rom('breakout.ch8')
-    chip8.load_rom('maze_demo.ch8')
+    chip8.load_rom(rom_path)
 
-    # Simulate key press
-    chip8.key = [1] * 16
+    sdl2.SDL_Init(sdl2.SDL_INIT_VIDEO)
+    window = sdl2.SDL_CreateWindow(
+        b"Chippy8",
+        sdl2.SDL_WINDOWPOS_CENTERED,
+        sdl2.SDL_WINDOWPOS_CENTERED,
+        WINDOW_WIDTH,
+        WINDOW_HEIGHT,
+        0,
+    )
+    renderer = sdl2.SDL_CreateRenderer(window, -1, 0)
 
-    while loop_count < 10000:
-        timer = time.time()
-        if (timer - time_since_last_cycle) >= (2.0 / 1000.0):
+    running = True
+    last_cycle = time.time()
+    while running:
+        for event in sdl2.ext.get_events():
+            if event.type == sdl2.SDL_QUIT:
+                running = False
+
+        now = time.time()
+        if now - last_cycle >= 1 / 500.0:
             chip8.emulate_cycle()
-            time_since_last_cycle = time.time()
-            loop_count += 1
-            print(chip8.pc)
+            last_cycle = now
 
-            x_draw = 0
-            col = 0
+        if chip8.update_screen:
+            draw_screen(renderer, chip8)
+            chip8.update_screen = False
 
-            for i in chip8.gfx:
-                if i:
-                    pygame.gfxdraw.pixel(screen, x_draw * i, col * i, (255, 255, 255, 255))
-                else:
-                    pygame.gfxdraw.pixel(screen, x_draw * i, col * i, (0, 0, 0, 255))
+        sdl2.SDL_Delay(1)
 
-                x_draw += 1
-                if x_draw >= 64:
-                    col +=1
-                    x_draw = 0
-            pygame.display.update()
-
-    raw_input("Hit enter to close.")
+    sdl2.SDL_DestroyRenderer(renderer)
+    sdl2.SDL_DestroyWindow(window)
+    sdl2.SDL_Quit()
 
 
+if __name__ == "__main__":
+    main()
