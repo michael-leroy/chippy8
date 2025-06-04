@@ -4,6 +4,7 @@ from tkinter import filedialog
 
 import sdl2
 import sdl2.ext
+import ctypes
 
 import chip8_hw
 
@@ -11,11 +12,9 @@ import chip8_hw
 CHIP8_WIDTH = 64
 CHIP8_HEIGHT = 32
 
-# Each CHIP-8 pixel will be drawn as a square of this size
-SCALE = 10
-
-WINDOW_WIDTH = CHIP8_WIDTH * SCALE
-WINDOW_HEIGHT = CHIP8_HEIGHT * SCALE
+# Initial window size (4:3 aspect ratio)
+WINDOW_WIDTH = 640
+WINDOW_HEIGHT = 480
 
 
 def select_rom():
@@ -27,8 +26,26 @@ def select_rom():
     return path
 
 
-def draw_screen(renderer, chip8):
-    """Render the current CHIP-8 framebuffer."""
+def draw_screen(renderer, chip8, window):
+    """Render the current CHIP-8 framebuffer with window scaling."""
+    win_w = ctypes.c_int()
+    win_h = ctypes.c_int()
+    sdl2.SDL_GetWindowSize(window, ctypes.byref(win_w), ctypes.byref(win_h))
+    win_w = win_w.value
+    win_h = win_h.value
+
+    aspect = 4 / 3
+    draw_w = win_w
+    draw_h = int(draw_w / aspect)
+    if draw_h > win_h:
+        draw_h = win_h
+        draw_w = int(draw_h * aspect)
+
+    off_x = (win_w - draw_w) // 2
+    off_y = (win_h - draw_h) // 2
+    scale_x = draw_w / CHIP8_WIDTH
+    scale_y = draw_h / CHIP8_HEIGHT
+
     sdl2.SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255)
     sdl2.SDL_RenderClear(renderer)
 
@@ -39,8 +56,9 @@ def draw_screen(renderer, chip8):
                 sdl2.SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255)
             else:
                 sdl2.SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255)
-            rect = sdl2.SDL_Rect(x * SCALE, y * SCALE, SCALE, SCALE)
+            rect = sdl2.SDL_Rect(int(off_x + x * scale_x), int(off_y + y * scale_y), int(scale_x), int(scale_y))
             sdl2.SDL_RenderFillRect(renderer, rect)
+
     sdl2.SDL_RenderPresent(renderer)
 
 
@@ -60,7 +78,7 @@ def main():
         sdl2.SDL_WINDOWPOS_CENTERED,
         WINDOW_WIDTH,
         WINDOW_HEIGHT,
-        0,
+        sdl2.SDL_WINDOW_RESIZABLE,
     )
     renderer = sdl2.SDL_CreateRenderer(window, -1, 0)
 
@@ -77,7 +95,7 @@ def main():
             last_cycle = now
 
         if chip8.update_screen:
-            draw_screen(renderer, chip8)
+            draw_screen(renderer, chip8, window)
             chip8.update_screen = False
 
         sdl2.SDL_Delay(1)
