@@ -1,6 +1,7 @@
 import time
 import tkinter as tk
 from tkinter import filedialog
+import math
 
 import sdl2
 import sdl2.ext
@@ -15,6 +16,31 @@ CHIP8_HEIGHT = 32
 # Initial window size (4:3 aspect ratio)
 WINDOW_WIDTH = 640
 WINDOW_HEIGHT = 480
+
+# Mapping from keyboard keys to CHIP-8 keypad values
+KEY_MAP = {
+    sdl2.SDLK_1: 0x1,
+    sdl2.SDLK_2: 0x2,
+    sdl2.SDLK_3: 0x3,
+    sdl2.SDLK_4: 0xC,
+    sdl2.SDLK_q: 0x4,
+    sdl2.SDLK_w: 0x5,
+    sdl2.SDLK_e: 0x6,
+    sdl2.SDLK_r: 0xD,
+    sdl2.SDLK_a: 0x7,
+    sdl2.SDLK_s: 0x8,
+    sdl2.SDLK_d: 0x9,
+    sdl2.SDLK_f: 0xE,
+    sdl2.SDLK_z: 0xA,
+    sdl2.SDLK_x: 0x0,
+    sdl2.SDLK_c: 0xB,
+    sdl2.SDLK_v: 0xF,
+}
+
+
+def beep():
+    """Emit a simple system beep."""
+    print("\a", end="", flush=True)
 
 
 def select_rom():
@@ -76,6 +102,7 @@ def main():
         return
 
     chip8 = chip8_hw.ChipEightCpu()
+    chip8.sound_callback = beep
     chip8.load_rom(rom_path)
 
     sdl2.SDL_Init(sdl2.SDL_INIT_VIDEO)
@@ -95,20 +122,55 @@ def main():
     last_cycle = time.time()
     last_frame = time.time()
     frame_delay = 1 / 60.0
+    cycles = 0
+    debug_root = None
+    debug_label = None
+    last_debug = time.time()
+
+    def toggle_debug():
+        nonlocal debug_root, debug_label
+        if debug_root:
+            debug_root.destroy()
+            debug_root = None
+            return
+        debug_root = tk.Tk()
+        debug_root.title("Debug")
+        debug_label = tk.Label(debug_root, text="")
+        debug_label.pack()
     while running:
         for event in sdl2.ext.get_events():
             if event.type == sdl2.SDL_QUIT:
                 running = False
+            elif event.type == sdl2.SDL_KEYDOWN:
+                if event.key.keysym.sym == sdl2.SDLK_ESCAPE:
+                    running = False
+                elif event.key.keysym.sym == sdl2.SDLK_F1:
+                    toggle_debug()
+                key = KEY_MAP.get(event.key.keysym.sym)
+                if key is not None:
+                    chip8.key[key] = 1
+            elif event.type == sdl2.SDL_KEYUP:
+                key = KEY_MAP.get(event.key.keysym.sym)
+                if key is not None:
+                    chip8.key[key] = 0
 
         now = time.time()
         if now - last_cycle >= 1 / 500.0:
             chip8.emulate_cycle()
+            cycles += 1
             last_cycle = now
 
         if now - last_frame >= frame_delay or chip8.update_screen:
             draw_screen(renderer, chip8, window)
             chip8.update_screen = False
             last_frame = now
+
+        if debug_root and now - last_debug >= 1:
+            cps = cycles / (now - last_debug)
+            debug_label.config(text=f"PC: {chip8.pc}\nCycles/s: {cps:.0f}")
+            cycles = 0
+            last_debug = now
+            debug_root.update()
 
         sdl2.SDL_Delay(1)
 

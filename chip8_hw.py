@@ -41,6 +41,7 @@ class ChipEightCpu(object):
 
         #The chip8 system has 16 keys (0x0 - 0xF)
         self.key = [0] * 16
+        self.sound_callback = None
 
         #TODO: load font set.
 
@@ -137,13 +138,15 @@ class ChipEightCpu(object):
             self.instruction_dispatch[(opcode & 0xF000)](opcode)
         else:
             print('Unknown/Invalid opcode ' + "0x%0.2X" % opcode)
-        #Decrement timer.
+        # Decrement timers at 60 Hz. When the sound timer reaches zero a beep
+        # should be played.
         if self.delay_timer > 0:
             self.delay_timer -= 1
-            if self.sound_timer == 1:
-                #TODO: have sound and graphics
-                print("BEEP!\n")
-                self.sound -= 1
+
+        if self.sound_timer > 0:
+            if self.sound_timer == 1 and self.sound_callback:
+                self.sound_callback()
+            self.sound_timer -= 1
 
 
 
@@ -300,11 +303,11 @@ class ChipEightCpu(object):
         8xy7 - SUBN Vx, Vy
         Set Vx = Vy - Vx, set VF = NOT BORROW
         '''
-        if self.V[self.x_y] > self.V[self.v_x]:
-            self.V[0xF] = 1 #NOT BOROW
+        if self.V[self.v_y] > self.V[self.v_x]:
+            self.V[0xF] = 1  # NOT BORROW
         else:
             self.V[0xF] = 0
-            self.V[self.v_x] = self.V[self.v_y] - self.V[self.v_x]
+        self.V[self.v_x] = (self.V[self.v_y] - self.V[self.v_x]) & 0xFF
         self.pc += 2
 
     def shl_vx(self, opcode):
@@ -335,7 +338,7 @@ class ChipEightCpu(object):
         9xy0 - SNE Vx, Vy
         Skip next instruction if Vx != Vy
         '''
-        if self.V[v_x] != selv.V[x_y]:
+        if self.V[self.v_x] != self.V[self.v_y]:
             self.pc += 4
         else:
             self.pc += 2
@@ -404,7 +407,7 @@ class ChipEightCpu(object):
         '''
         Ex9E - SKP Vx, skip next instruction if key is pressed.
         '''
-        if self.keys[v_x] == 1:
+        if self.key[self.v_x] == 1:
             self.pc += 4
         else:
             self.pc += 2
@@ -432,7 +435,7 @@ class ChipEightCpu(object):
         '''
         Fx07 set Vx = delay timer value
         '''
-        self.V[v_x] = self.delay_timer
+        self.V[self.v_x] = self.delay_timer
         self.pc += 2
     
     def ld_vx_k(self, opcode):
