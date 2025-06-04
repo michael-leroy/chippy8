@@ -1,8 +1,9 @@
 #!/usr/bin/python
 #uses pytest/py.test - pytest.org
 import chip8_hw
+import os
 import pytest
-import mock
+from unittest import mock
 
 
 
@@ -226,32 +227,29 @@ def test_ld_vx_vy():
     test setting vx to the value of vy.
     '''
     chip = initalize_system(0x81, 0x20)
-    chip.V[1] == 0x00
-    chip.V[2] == 0xFE
+    chip.V[1] = 0x00
+    chip.V[2] = 0xFE
     chip.emulate_cycle()
-    print(chip.V[1])
-    print(chip.V[2])
     assert chip.V[1] == 0xFE
     assert chip.pc == 514
     chip = None
 
 def test_rom_load():
+    rom_path = "breakout.ch8"
+    if not os.path.exists(rom_path):
+        pytest.skip("ROM file not available")
+
     chip = chip8_hw.ChipEightCpu()
-    chip.load_rom("breakout.ch8")
+    chip.load_rom(rom_path)
 
     memory_offset = 512
 
     assert chip.memory[memory_offset] > 0
 
-    print(str(chip.memory[memory_offset]))
-
     while chip.memory[memory_offset] > 0:
         opcode = chip.get_opcode()
-
         memory_offset += 2
         chip.pc += 2
-
-        print("Opcode: " + "0x%0.2X" % opcode)
         assert opcode
 
 
