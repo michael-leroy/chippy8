@@ -1,6 +1,7 @@
 #!/usr/bin/python
 
 import random
+import time
 
 class ChipEightCpu(object):
     def __init__(self):
@@ -33,6 +34,8 @@ class ChipEightCpu(object):
         #zero
         self.delay_timer = 0
         self.sound_timer = 0
+        self.last_timer_update = time.time()
+        self.last_timer_update = time.time()
         
         #The stack has 16 levels
         #I am unsure if I need stack pointer?
@@ -72,8 +75,8 @@ class ChipEightCpu(object):
                 0xC000 : self.rnd_vx_byte,
                 0xD000 : self.drw_vx_vy,
                 0xE000 : self.xE_dispatch,
-                #'0xE00E' : skp_vx,
-                0xE001 : self.sknp_vx,
+                0xE09E : self.skp_vx,
+                0xE0A1 : self.sknp_vx,
                 0xF000 : self.xF_dispatch,
                 0xF007 : self.ld_vx_dt,
                 0xF00A : self.ld_vx_k,
@@ -118,10 +121,8 @@ class ChipEightCpu(object):
         #sucessive bytes and merge them to get the full opcode
         #First we add 8 bits to the end so its 2bytes long, then merge the second
         #half 
-        opcode = self.memory[self.pc] << 8 | self.memory[self.pc + 1]
-
-        if (opcode & 0xF000) in self.instruction_dispatch:
-            return opcode
+        opcode = (self.memory[self.pc] << 8) | self.memory[self.pc + 1]
+        return opcode
 
     def emulate_cycle(self):
 
@@ -134,19 +135,22 @@ class ChipEightCpu(object):
         self.v_x = (opcode & 0x0F00) >> 8
         self.v_y = (opcode & 0x00F0) >> 4
     
-        if opcode:
+        if (opcode & 0xF000) in self.instruction_dispatch:
             self.instruction_dispatch[(opcode & 0xF000)](opcode)
         else:
-            print('Unknown/Invalid opcode ' + "0x%0.2X" % opcode)
+            print('Unknown/Invalid opcode ' + "0x%0.4X" % opcode)
+            self.pc += 2
         # Decrement timers at 60 Hz. When the sound timer reaches zero a beep
         # should be played.
-        if self.delay_timer > 0:
-            self.delay_timer -= 1
-
-        if self.sound_timer > 0:
-            if self.sound_timer == 1 and self.sound_callback:
-                self.sound_callback()
-            self.sound_timer -= 1
+        now = time.time()
+        if now - self.last_timer_update >= 1 / 60.0:
+            if self.delay_timer > 0:
+                self.delay_timer -= 1
+            if self.sound_timer > 0:
+                if self.sound_timer == 1 and self.sound_callback:
+                    self.sound_callback()
+                self.sound_timer -= 1
+            self.last_timer_update = now
 
 
 
@@ -193,7 +197,7 @@ class ChipEightCpu(object):
         '''
         0x3000 == 3xkk, Skip next instruction if Vx == kk.
         '''
-        if self.V[self.v_x] == opcode & 0x00FF:
+        if self.V[self.v_x] == (opcode & 0x00FF):
             self.pc += 4
         else:
             self.pc += 2
@@ -202,7 +206,7 @@ class ChipEightCpu(object):
         '''
         0x4000 == 4xkk, Skip next instruction if Vx != kk.
         '''
-        if self.V[self.v_x] != opcode & 0x00FF:
+        if self.V[self.v_x] != (opcode & 0x00FF):
             self.pc += 4
         else:
             self.pc += 2
@@ -228,7 +232,7 @@ class ChipEightCpu(object):
         0x7000 = 7xkk Add Vx. Add value kk to register Vx and store value
         in Vx
         '''
-        self.V[self.v_x] += opcode & 0x00FF 
+        self.V[self.v_x] = (self.V[self.v_x] + (opcode & 0x00FF)) & 0xFF
         self.pc += 2
 
     def ld_vx_vy(self, opcode):
@@ -278,11 +282,11 @@ class ChipEightCpu(object):
         8xy5 - Sub Vx, Vy.
         Set Vx = Vx - Vy, set Vf = if it does NOT borrow
         '''
-        if (self.V[self.v_x] > self.V[self.v_y]):
-            self.V[0xF] = 1 #NOT BORROW
+        if self.V[self.v_x] > self.V[self.v_y]:
+            self.V[0xF] = 1  # NOT BORROW
         else:
-            self.V[0xF] = 0 #Brrow
-            self.V[self.v_x] -= self.V[self.v_y]
+            self.V[0xF] = 0  # Borrow
+        self.V[self.v_x] = (self.V[self.v_x] - self.V[self.v_y]) & 0xFF
         self.pc += 2
 
     def shr_vx(self, opcode):
@@ -291,11 +295,11 @@ class ChipEightCpu(object):
         If the least significant bit of Vx is 1, set VF = 1
         otherwise 0. Then divide Vx by 2
         '''
-        if self.V[self.v_x] & 0b00000001 == 0b1:
+        if self.V[self.v_x] & 0b00000001:
             self.V[0xF] = 1
         else:
             self.V[0xF] = 0
-            self.V[self.v_x] //= 2
+        self.V[self.v_x] >>= 1
         self.pc += 2
 
     def subn_vx_vy(self, opcode):
@@ -314,11 +318,11 @@ class ChipEightCpu(object):
         '''
         8xyE - SHL Vx {, Vy}
         '''
-        if (self.V[self.v_x] >> 7) == 1:
+        if (self.V[self.v_x] >> 7) & 1:
             self.V[0xF] = 1
         else:
             self.V[0xF] = 0
-            self.V[self.v_x] = self.V[self.v_x] << 1
+        self.V[self.v_x] = (self.V[self.v_x] << 1) & 0xFF
         self.pc += 2
 
     def x8_dispatch(self, opcode):
@@ -427,7 +431,7 @@ class ChipEightCpu(object):
         Runs the correct 0xE000 instruction.
         '''
         try:
-            self.instruction_dispatch[(opcode & 0xF00F)](opcode)
+            self.instruction_dispatch[(opcode & 0xF0FF)](opcode)
         except KeyError:
             print('Unknown/Invalid opcode ' + str(opcode))
 

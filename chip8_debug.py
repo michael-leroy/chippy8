@@ -18,6 +18,9 @@ CHIP8_HEIGHT = 32
 WINDOW_WIDTH = 640
 WINDOW_HEIGHT = 480
 
+# CPU execution speed in cycles per second
+CPU_HZ = 700
+
 # Mapping from keyboard keys to CHIP-8 keypad values
 KEY_MAP = {
     sdl2.SDLK_1: 0x1,
@@ -180,7 +183,7 @@ def main():
                     chip8.key[key] = 0
 
         now = time.time()
-        if now - last_cycle >= 1 / 500.0:
+        if now - last_cycle >= 1 / CPU_HZ:
             chip8.emulate_cycle()
             cycles += 1
             last_cycle = now
