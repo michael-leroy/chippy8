@@ -17,9 +17,10 @@ CHIP8_HEIGHT = 32
 # Initial window size (4:3 aspect ratio)
 WINDOW_WIDTH = 640
 WINDOW_HEIGHT = 480
+DEBUG_WIDTH = 220
 
 # CPU execution speed in cycles per second
-CPU_HZ = 700
+CPU_HZ = 500
 
 # Mapping from keyboard keys to CHIP-8 keypad values
 KEY_MAP = {
@@ -146,8 +147,19 @@ def main():
 
         debug_root = tk.Toplevel(control_root)
         debug_root.title("Debug")
-        debug_label = tk.Label(debug_root, text="")
+        debug_root.resizable(False, False)
+        debug_label = tk.Label(debug_root, text="", justify="left")
         debug_label.pack()
+        # Position debug window to the right of the SDL window
+        win_x = ctypes.c_int()
+        win_y = ctypes.c_int()
+        win_w = ctypes.c_int()
+        win_h = ctypes.c_int()
+        sdl2.SDL_GetWindowPosition(window, ctypes.byref(win_x), ctypes.byref(win_y))
+        sdl2.SDL_GetWindowSize(window, ctypes.byref(win_w), ctypes.byref(win_h))
+        geom = f"{DEBUG_WIDTH}x{win_h.value}+{win_x.value + win_w.value}+{win_y.value}"
+        debug_root.geometry(geom)
+
         def on_close():
             nonlocal debug_root
             debug_root.destroy()
@@ -205,6 +217,15 @@ def main():
                     f"{regs}\nCycles/s: {cps:.0f}"
                 )
             )
+            # keep debug window aligned with the SDL window
+            win_x = ctypes.c_int()
+            win_y = ctypes.c_int()
+            win_w = ctypes.c_int()
+            win_h = ctypes.c_int()
+            sdl2.SDL_GetWindowPosition(window, ctypes.byref(win_x), ctypes.byref(win_y))
+            sdl2.SDL_GetWindowSize(window, ctypes.byref(win_w), ctypes.byref(win_h))
+            geom = f"{DEBUG_WIDTH}x{win_h.value}+{win_x.value + win_w.value}+{win_y.value}"
+            debug_root.geometry(geom)
             cycles = 0
             last_debug = now
             try:

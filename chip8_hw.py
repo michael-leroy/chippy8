@@ -295,7 +295,8 @@ class ChipEightCpu(object):
         If the least significant bit of Vx is 1, set VF = 1
         otherwise 0. Then divide Vx by 2
         '''
-        if self.V[self.v_x] & 0b00000001:
+        # Save the least significant bit before shifting
+        if (self.V[self.v_x] & 0b1) == 1:
             self.V[0xF] = 1
         else:
             self.V[0xF] = 0
@@ -446,14 +447,11 @@ class ChipEightCpu(object):
         '''
         Fx0A wait for a key press and store value in Vx
         '''
-        key_wait_pressed = 0
-        for k in self.key:
-            if k == 1:
-                self.V[self.v_x] = 1
-                key_wait_pressed = 1
+        for idx, state in enumerate(self.key):
+            if state == 1:
+                self.V[self.v_x] = idx
+                self.pc += 2
                 break
-        if key_wait_pressed == 1:
-            self.pc += 2
 
     def ld_dt_vx(self, opcode):
         '''
