@@ -107,7 +107,7 @@ class ChipEightCpu(object):
         with open(rom_file_path, "rb") as f:
             byte = f.read(1)
             while byte != b"":
-                self.memory[memory_offset] = byte
+                self.memory[memory_offset] = byte[0]
                 memory_offset += 1
                 byte = f.read(1)
 
@@ -292,7 +292,7 @@ class ChipEightCpu(object):
             self.V[0xF] = 1
         else:
             self.V[0xF] = 0
-            self.V[self.v_x] /= 2
+            self.V[self.v_x] //= 2
         self.pc += 2
 
     def subn_vx_vy(self, opcode):
@@ -376,11 +376,11 @@ class ChipEightCpu(object):
         #set VF to zero because there has been no collision yet
         self.V[0xF] = 0
         #Read the sprite data from memory
-        for x in xrange(drw_height):
+        for x in range(drw_height):
             sprite_data.append(self.memory[self.I + x])
-        for sprite_row in xrange(len(sprite_data)):
+        for sprite_row in range(len(sprite_data)):
             #Sprites are always 8 pixels wide
-            for pixel_offset in xrange(8):
+            for pixel_offset in range(8):
                 location = drw_x + pixel_offset + ((drw_y + sprite_row) * 64)
                 if (drw_y + sprite_row) >= 32 or (drw_x + pixel_offset -1) >= 64:
                     #Don't do anything for pixels that are off the screen
@@ -482,8 +482,8 @@ class ChipEightCpu(object):
         Fx33 - LD B, Vx
         Store BCD rep of Vx in memory locaton I/I+1/I+2
         '''
-        self.memory[self.I] = (self.V[self.v_x] / 100) #hundreds digit
-        self.memory[self.I + 1] = ((self.V[self.v_x] % 100) / 10) #tens digit
+        self.memory[self.I] = (self.V[self.v_x] // 100) #hundreds digit
+        self.memory[self.I + 1] = ((self.V[self.v_x] % 100) // 10) #tens digit
         self.memory[self.I + 2] = (self.V[self.v_x] % 10) # ones digit
         self.pc += 2
 
@@ -492,7 +492,7 @@ class ChipEightCpu(object):
         Fx55 - LD [I], Vx
         Store registers V0-Vx from memory starting at location I.
         '''
-        for registers in xrange(self.v_x + 1):
+        for registers in range(self.v_x + 1):
             self.memory[self.I + registers] = self.V[registers]
         self.pc += 2
 
@@ -501,7 +501,7 @@ class ChipEightCpu(object):
         Fx65 - LD Vx, [I]
         Read regisers V0-Vx from memory starting at location I.
         '''
-        for registers in xrange(self.v_x  + 1):
+        for registers in range(self.v_x + 1):
             self.V[registers] = self.memory[self.I + registers]
         self.pc += 2
 
