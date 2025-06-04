@@ -45,6 +45,8 @@ def draw_screen(renderer, chip8, window):
     off_y = (win_h - draw_h) // 2
     scale_x = draw_w / CHIP8_WIDTH
     scale_y = draw_h / CHIP8_HEIGHT
+    px_w = max(1, int(scale_x))
+    px_h = max(1, int(scale_y))
 
     sdl2.SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255)
     sdl2.SDL_RenderClear(renderer)
@@ -56,7 +58,12 @@ def draw_screen(renderer, chip8, window):
                 sdl2.SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255)
             else:
                 sdl2.SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255)
-            rect = sdl2.SDL_Rect(int(off_x + x * scale_x), int(off_y + y * scale_y), int(scale_x), int(scale_y))
+            rect = sdl2.SDL_Rect(
+                int(off_x + x * scale_x),
+                int(off_y + y * scale_y),
+                px_w,
+                px_h,
+            )
             sdl2.SDL_RenderFillRect(renderer, rect)
 
     sdl2.SDL_RenderPresent(renderer)
@@ -80,10 +87,14 @@ def main():
         WINDOW_HEIGHT,
         sdl2.SDL_WINDOW_RESIZABLE,
     )
-    renderer = sdl2.SDL_CreateRenderer(window, -1, 0)
+    renderer = sdl2.SDL_CreateRenderer(
+        window, -1, sdl2.SDL_RENDERER_ACCELERATED | sdl2.SDL_RENDERER_PRESENTVSYNC
+    )
 
     running = True
     last_cycle = time.time()
+    last_frame = time.time()
+    frame_delay = 1 / 60.0
     while running:
         for event in sdl2.ext.get_events():
             if event.type == sdl2.SDL_QUIT:
@@ -94,9 +105,10 @@ def main():
             chip8.emulate_cycle()
             last_cycle = now
 
-        if chip8.update_screen:
+        if now - last_frame >= frame_delay or chip8.update_screen:
             draw_screen(renderer, chip8, window)
             chip8.update_screen = False
+            last_frame = now
 
         sdl2.SDL_Delay(1)
 
