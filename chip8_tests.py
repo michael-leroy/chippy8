@@ -128,7 +128,7 @@ def test_ret():
     '''
     chip = initalize_system(0x00, 0xEE)
     #add someting to the stack
-    chip.stack.append(514)
+    chip.stack.append(512)
     chip.emulate_cycle()
     assert chip.pc == 514
     assert len(chip.stack) == 0

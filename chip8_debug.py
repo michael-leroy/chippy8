@@ -6,6 +6,7 @@ import math
 import sdl2
 import sdl2.ext
 import ctypes
+from sdl2 import messagebox
 
 import chip8_hw
 
@@ -130,9 +131,37 @@ def main():
     def toggle_debug():
         nonlocal debug_root, debug_label
         if debug_root:
+            question = b"Disable debug window?"
+        else:
+            question = b"Enable debug window?"
+
+        buttons = (
+            messagebox.SDL_MessageBoxButtonData(
+                messagebox.SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT, 1, b"Yes"
+            ),
+            messagebox.SDL_MessageBoxButtonData(
+                messagebox.SDL_MESSAGEBOX_BUTTON_ESCAPEKEY_DEFAULT, 0, b"No"
+            ),
+        )
+        msgdata = messagebox.SDL_MessageBoxData(
+            flags=messagebox.SDL_MESSAGEBOX_INFORMATION,
+            window=window,
+            title=b"Debug",
+            message=question,
+            numbuttons=len(buttons),
+            buttons=(messagebox.SDL_MessageBoxButtonData * len(buttons))(*buttons),
+            colorScheme=None,
+        )
+        buttonid = ctypes.c_int()
+        messagebox.SDL_ShowMessageBox(ctypes.byref(msgdata), ctypes.byref(buttonid))
+        if buttonid.value != 1:
+            return
+
+        if debug_root:
             debug_root.destroy()
             debug_root = None
             return
+
         debug_root = tk.Tk()
         debug_root.title("Debug")
         debug_label = tk.Label(debug_root, text="")
@@ -167,7 +196,14 @@ def main():
 
         if debug_root and now - last_debug >= 1:
             cps = cycles / (now - last_debug)
-            debug_label.config(text=f"PC: {chip8.pc}\nCycles/s: {cps:.0f}")
+            regs = " ".join(f"V{idx:X}:{val:02X}" for idx, val in enumerate(chip8.V))
+            debug_label.config(
+                text=(
+                    f"PC: {chip8.pc:03X} I:{chip8.I:03X}\n"
+                    f"DT:{chip8.delay_timer} ST:{chip8.sound_timer}\n"
+                    f"{regs}\nCycles/s: {cps:.0f}"
+                )
+            )
             cycles = 0
             last_debug = now
             debug_root.update()

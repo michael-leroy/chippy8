@@ -174,7 +174,7 @@ class ChipEightCpu(object):
         '''
         0x000E == 0x00EE: returns from subroutine
         '''
-        self.pc = self.stack.pop()
+        self.pc = self.stack.pop() + 2
 
     def jp_addr(self, opcode):
         '''
