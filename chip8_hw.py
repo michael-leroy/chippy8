@@ -295,11 +295,8 @@ class ChipEightCpu(object):
         If the least significant bit of Vx is 1, set VF = 1
         otherwise 0. Then divide Vx by 2
         '''
-        # Save the least significant bit before shifting
-        if (self.V[self.v_x] & 0b1) == 1:
-            self.V[0xF] = 1
-        else:
-            self.V[0xF] = 0
+        # VF should contain the least significant bit prior to shifting
+        self.V[0xF] = self.V[self.v_x] & 0b1
         self.V[self.v_x] >>= 1
         self.pc += 2
 
