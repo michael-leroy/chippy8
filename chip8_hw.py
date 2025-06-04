@@ -307,7 +307,7 @@ class ChipEightCpu(object):
             self.V[self.v_x] = self.V[self.v_y] - self.V[self.v_x]
         self.pc += 2
 
-    def shl_vx(self, opcoode):
+    def shl_vx(self, opcode):
         '''
         8xyE - SHL Vx {, Vy}
         '''
