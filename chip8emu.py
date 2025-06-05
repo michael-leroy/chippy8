@@ -262,8 +262,8 @@ def main():
         sdl2.AUDIO_S16SYS,
         1,
         frame_samples,
-        None,
-        None,
+        sdl2.SDL_AudioCallback(0),
+        ctypes.c_void_p(0),
     )
 
     audio_device = sdl2.SDL_OpenAudioDevice(None, 0, desired, None, 0)
