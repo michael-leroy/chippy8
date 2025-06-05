@@ -138,7 +138,11 @@ class ChipEightCpu(object):
         will not fit into available memory a ``ValueError`` is raised.
         """
 
+        # Preserve debug mode across ROM loads so the debug window doesn't
+        # become desynchronized with the CPU state.
+        debug_enabled = self.debug
         self.reset()
+        self.debug = debug_enabled
 
         memory_offset = 0x200
 

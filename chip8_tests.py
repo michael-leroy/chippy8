@@ -384,6 +384,24 @@ def test_load_rom_too_large(tmp_path):
         cpu.load_rom(str(rom))
 
 
+def test_load_rom_preserves_debug(tmp_path):
+    rom = tmp_path / "small.ch8"
+    rom.write_bytes(b"\x00\xE0")
+
+    called = []
+
+    def cb(cpu=None):
+        called.append(True)
+
+    cpu = chip8_hw.ChipEightCpu(debug_callback=cb)
+    cpu.debug = True
+    cpu.load_rom(str(rom))
+
+    assert cpu.debug is True
+    cpu.emulate_cycle()
+    assert called
+
+
 def test_process_key_event():
     cpu = chip8_hw.ChipEightCpu()
     assert chip8emu.process_key_event(cpu, sdl2.SDLK_1, True) is True

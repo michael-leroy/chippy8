@@ -289,6 +289,10 @@ def main():
         if path:
             chip8_ref[0] = chip8_hw.ChipEightCpu(debug_callback=update_debug)
             chip8_ref[0].load_rom(path)
+            # Ensure the CPU debug flag matches the UI state so the memory view
+            # updates immediately after loading a ROM.
+            toggle_debug()
+            update_debug(chip8_ref[0])
             rom_loaded = True
             chip8_ref[0].update_screen = True
             last_time = time.time()
