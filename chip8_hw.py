@@ -90,7 +90,7 @@ class ChipEightCpu(object):
                 0xF029 : self.ld_f_vx,
                 0xF033 : self.ld_b_vx,
                 0xF055 : self.ld_i_vx,
-                0xF065 : self.ld_vx_i
+                0xF065 : self.ld_vx_i_no_inc
         }
 
     def _load_fontset(self):
@@ -576,6 +576,15 @@ class ChipEightCpu(object):
             self.V[registers] = self.memory[self.I + registers]
         # Increment I like the original interpreter for compatibility
         self.I += self.v_x + 1
+        self.pc += 2
+
+    def ld_vx_i_no_inc(self, opcode):
+        '''
+        Fx65 variant that keeps I unchanged.
+        The offset from I increases for each register, but I stays the same.
+        '''
+        for registers in range(self.v_x + 1):
+            self.V[registers] = self.memory[self.I + registers]
         self.pc += 2
 
 
