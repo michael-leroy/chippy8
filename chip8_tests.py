@@ -461,6 +461,50 @@ def test_tk_to_sdl_pipeline_for_all_keys():
         assert cpu.key[expected] == 0
 
 
+def test_drw_wraps_horizontally():
+    cpu = chip8_hw.ChipEightCpu()
+    cpu.I = 0x300
+    cpu.memory[0x300] = 0b11000000
+    cpu.v_x = 1
+    cpu.v_y = 2
+    cpu.V[1] = 63
+    cpu.V[2] = 0
+    cpu.drw_vx_vy(0xD121)
+    assert cpu.gfx[63] == 1
+    assert cpu.gfx[0] == 1
+    assert cpu.V[0xF] == 0
+
+
+def test_drw_wraps_vertically():
+    cpu = chip8_hw.ChipEightCpu()
+    cpu.I = 0x300
+    cpu.memory[0x300] = 0b10000000
+    cpu.memory[0x301] = 0b10000000
+    cpu.v_x = 1
+    cpu.v_y = 2
+    cpu.V[1] = 0
+    cpu.V[2] = 31
+    cpu.drw_vx_vy(0xD122)
+    assert cpu.gfx[31 * 64] == 1
+    assert cpu.gfx[0] == 1
+    assert cpu.V[0xF] == 0
+
+
+def test_drw_collision_when_wrapping():
+    cpu = chip8_hw.ChipEightCpu()
+    cpu.gfx[0] = 1
+    cpu.I = 0x300
+    cpu.memory[0x300] = 0b11000000
+    cpu.v_x = 1
+    cpu.v_y = 2
+    cpu.V[1] = 63
+    cpu.V[2] = 0
+    cpu.drw_vx_vy(0xD121)
+    assert cpu.V[0xF] == 1
+    assert cpu.gfx[0] == 0
+    assert cpu.gfx[63] == 1
+
+
 
 
 # def test_0x00E0():
