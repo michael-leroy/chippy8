@@ -299,6 +299,13 @@ def test_shift_operations():
     assert chip.V[0xF] == 1
     chip = None
 
+def test_ld_f_vx_sets_font_address():
+    cpu = chip8_hw.ChipEightCpu()
+    cpu.V[1] = 0xA
+    cpu.v_x = 1
+    cpu.ld_f_vx(0xF129)
+    assert cpu.I == 0x50 + 0xA * 5
+
 def test_key_skip():
     chip = initalize_system(0xE1, 0x9E)
     chip.V[1] = 0x2
