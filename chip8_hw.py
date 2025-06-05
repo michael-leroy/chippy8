@@ -545,6 +545,8 @@ class ChipEightCpu(object):
         '''
         for registers in range(self.v_x + 1):
             self.memory[self.I + registers] = self.V[registers]
+        # The original CHIP-8 increments I after execution
+        self.I += self.v_x + 1
         self.pc += 2
 
     def ld_vx_i(self, opcode):
@@ -554,6 +556,8 @@ class ChipEightCpu(object):
         '''
         for registers in range(self.v_x + 1):
             self.V[registers] = self.memory[self.I + registers]
+        # Increment I like the original interpreter for compatibility
+        self.I += self.v_x + 1
         self.pc += 2
 
 

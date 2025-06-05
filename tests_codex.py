@@ -69,6 +69,32 @@ def test_add_I_vx_allows_overflow():
     assert cpu.I == 0x1002
 
 
+def test_ld_i_vx_increments_index():
+    cpu = chip8_hw.ChipEightCpu()
+    cpu.I = 0x300
+    cpu.v_x = 2
+    cpu.V[0] = 1
+    cpu.V[1] = 2
+    cpu.V[2] = 3
+    cpu.ld_i_vx(0xF255)
+    assert cpu.memory[0x300] == 1
+    assert cpu.memory[0x301] == 2
+    assert cpu.memory[0x302] == 3
+    assert cpu.I == 0x303
+
+
+def test_ld_vx_i_increments_index():
+    cpu = chip8_hw.ChipEightCpu()
+    cpu.I = 0x400
+    cpu.memory[0x400:0x403] = bytearray([4, 5, 6])
+    cpu.v_x = 2
+    cpu.ld_vx_i(0xF265)
+    assert cpu.V[0] == 4
+    assert cpu.V[1] == 5
+    assert cpu.V[2] == 6
+    assert cpu.I == 0x403
+
+
 def test_draw_collision_and_bounds():
     cpu = chip8_hw.ChipEightCpu()
     cpu.I = 0x300
