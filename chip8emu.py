@@ -256,13 +256,15 @@ def main():
     )
     beep_bytes = beep_samples.tobytes()
 
-    desired = sdl2.SDL_AudioSpec()
-    desired.freq = sample_rate
-    desired.format = sdl2.AUDIO_S16SYS
-    desired.channels = 1
-    desired.samples = frame_samples
-    desired.callback = None
-    desired.userdata = None
+    # SDL_AudioSpec requires defaults provided via constructor
+    desired = sdl2.SDL_AudioSpec(
+        sample_rate,
+        sdl2.AUDIO_S16SYS,
+        1,
+        frame_samples,
+        None,
+        None,
+    )
 
     audio_device = sdl2.SDL_OpenAudioDevice(None, 0, desired, None, 0)
     sound_playing = False
