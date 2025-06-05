@@ -46,6 +46,9 @@ class ChipEightCpu(object):
         self.debug = False
         self.debug_callback = debug_callback
 
+        # store loaded ROM bytes for debug display
+        self.rom = bytearray()
+
         self._load_fontset()
 
         self.instruction_dispatch = {
@@ -129,6 +132,7 @@ class ChipEightCpu(object):
         self._load_fontset()
 
         self.debug = False
+        self.rom = bytearray()
 
     def load_rom(self, rom_file_path):
         """Load a CHIP-8 ROM into memory starting at address ``0x200``.
@@ -153,6 +157,7 @@ class ChipEightCpu(object):
             raise ValueError("ROM size exceeds available memory")
 
         self.memory[memory_offset : memory_offset + len(data)] = data
+        self.rom = bytearray(data)
 
 
     def get_opcode(self):

@@ -374,6 +374,7 @@ def test_load_rom_resets_state(tmp_path):
 
     assert cpu.pc == 0x200
     assert cpu.memory[0x200:0x204] == b"\x60\x00\x61\x01"
+    assert cpu.rom == b"\x60\x00\x61\x01"
 
 def test_load_rom_too_large(tmp_path):
     rom = tmp_path / "big.ch8"
@@ -400,6 +401,17 @@ def test_load_rom_preserves_debug(tmp_path):
     assert cpu.debug is True
     cpu.emulate_cycle()
     assert called
+
+
+def test_load_rom_stores_rom_bytes(tmp_path):
+    rom = tmp_path / "small.ch8"
+    data = b"\x01\x02\x03\x04"
+    rom.write_bytes(data)
+
+    cpu = chip8_hw.ChipEightCpu()
+    cpu.load_rom(str(rom))
+
+    assert cpu.rom == data
 
 
 def test_process_key_event():

@@ -122,16 +122,33 @@ def create_menu(root, chip8_ref):
         labels[f"V{i}"].grid(row=row + i // 2, column=(i % 2) * 2 + 1, sticky="w")
     row += 8
 
-    mem_text = tk.Text(debug_win, width=48, height=20, font=("Courier", 8))
-    mem_text.grid(row=row, column=0, columnspan=4, sticky="nsew")
+    tk.Label(debug_win, text="ROM").grid(row=row, column=0, sticky="w")
+    row += 1
+    rom_text = tk.Text(debug_win, width=48, height=10, font=("Courier", 8))
+    rom_text.grid(row=row, column=0, columnspan=4, sticky="nsew")
     debug_win.rowconfigure(row, weight=1)
     debug_win.columnconfigure(3, weight=1)
+    row += 1
+
+    tk.Label(debug_win, text="RAM").grid(row=row, column=0, sticky="w")
+    row += 1
+    mem_text = tk.Text(debug_win, width=48, height=10, font=("Courier", 8))
+    mem_text.grid(row=row, column=0, columnspan=4, sticky="nsew")
+    debug_win.rowconfigure(row, weight=1)
     row += 1
 
     debug_win.withdraw()
 
     perf = {"cps": 0, "fps": 0}
-    mem_cache = [""] * (len(chip8_ref[0].memory) // 16)
+    mem_cache = ["" for _ in range(len(chip8_ref[0].memory) // 16)]
+
+    def update_rom_view(cpu):
+        rom_text.delete("1.0", tk.END)
+        for offset in range(0, len(cpu.rom), 16):
+            addr = 0x200 + offset
+            chunk = cpu.rom[offset : offset + 16]
+            chunk_hex = " ".join(f"{b:02X}" for b in chunk)
+            rom_text.insert(tk.END, f"{addr:03X}: {chunk_hex}\n")
 
     def update_debug(cpu=None):
         if cpu is not None:
@@ -186,7 +203,7 @@ def create_menu(root, chip8_ref):
 
     chip8_ref[0].debug_callback = update_debug
 
-    return debug_win, update_debug, toggle_debug, file_menu, perf
+    return debug_win, update_debug, update_rom_view, toggle_debug, file_menu, perf
 
 
 def draw_screen(renderer, chip8, window):
@@ -274,7 +291,7 @@ def main():
     root.bind_all("<KeyRelease>", on_key_release)
     frame.focus_set()
 
-    debug_win, update_debug, toggle_debug, file_menu, perf = create_menu(root, chip8_ref)
+    debug_win, update_debug, update_rom_view, toggle_debug, file_menu, perf = create_menu(root, chip8_ref)
 
     running = True
     paused = False
@@ -299,6 +316,7 @@ def main():
             # Ensure the CPU debug flag matches the UI state so the memory view
             # updates immediately after loading a ROM.
             toggle_debug()
+            update_rom_view(chip8_ref[0])
             update_debug(chip8_ref[0])
             rom_loaded = True
             chip8_ref[0].update_screen = True
@@ -374,7 +392,7 @@ def main():
                 last_fps_update = now
 
         if chip8_ref[0].debug:
-            update_debug()
+            update_debug(chip8_ref[0])
 
         root.update_idletasks()
         root.update()
