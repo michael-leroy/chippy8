@@ -111,6 +111,10 @@ def create_menu(root, chip8_ref):
     labels["ST"].grid(row=row, column=0, columnspan=2, sticky="w")
     row += 1
 
+    labels["BEEPS"] = tk.Label(debug_win, text="BEEPS: 0")
+    labels["BEEPS"].grid(row=row, column=0, columnspan=2, sticky="w")
+    row += 1
+
     labels["CPS"] = tk.Label(debug_win, text="CPS: 0")
     labels["CPS"].grid(row=row, column=0, columnspan=2, sticky="w")
     row += 1
@@ -150,6 +154,7 @@ def create_menu(root, chip8_ref):
             labels["I"].config(text=f"I: {cpu.I:03X}")
             labels["DT"].config(text=f"DT: {cpu.delay_timer:02X}")
             labels["ST"].config(text=f"ST: {cpu.sound_timer:02X}")
+            labels["BEEPS"].config(text=f"BEEPS: {cpu.beep_count}")
             for i in range(16):
                 labels[f"V{i}"].config(text=f"{cpu.V[i]:02X}")
 

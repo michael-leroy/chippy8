@@ -33,6 +33,9 @@ class ChipEightCpu(object):
         #zero
         self.delay_timer = 0
         self.sound_timer = 0
+
+        # Track how many times the sound timer reached 1
+        self.beep_count = 0
         
         #The stack has 16 levels
         #I am unsure if I need stack pointer?
@@ -128,6 +131,7 @@ class ChipEightCpu(object):
         self.sound_timer = 0
         self.stack = []
         self.key = [0] * 16
+        self.beep_count = 0
 
         self._load_fontset()
 
@@ -189,8 +193,7 @@ class ChipEightCpu(object):
             self.delay_timer -= 1
         if self.sound_timer > 0:
             if self.sound_timer == 1:
-                # TODO: have sound and graphics
-                print("BEEP!\n")
+                self.beep_count += 1
             self.sound_timer -= 1
 
         if self.debug and self.debug_callback:
