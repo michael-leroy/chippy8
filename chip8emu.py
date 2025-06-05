@@ -33,14 +33,41 @@ KEY_MAP = {
     sdl2.SDLK_v: 0xF,
 }
 
+# Map Tk "keysym" names to SDL key constants for the same
+# CHIP-8 keypad layout. This allows keyboard input to work
+# when the SDL window is embedded within a Tk frame.
+TK_KEY_MAP = {
+    "1": sdl2.SDLK_1,
+    "2": sdl2.SDLK_2,
+    "3": sdl2.SDLK_3,
+    "4": sdl2.SDLK_4,
+    "q": sdl2.SDLK_q,
+    "w": sdl2.SDLK_w,
+    "e": sdl2.SDLK_e,
+    "r": sdl2.SDLK_r,
+    "a": sdl2.SDLK_a,
+    "s": sdl2.SDLK_s,
+    "d": sdl2.SDLK_d,
+    "f": sdl2.SDLK_f,
+    "z": sdl2.SDLK_z,
+    "x": sdl2.SDLK_x,
+    "c": sdl2.SDLK_c,
+    "v": sdl2.SDLK_v,
+}
+
 
 def process_key_event(
-    cpu: chip8_hw.ChipEightCpu, key_sym: int, pressed: bool
+    cpu: chip8_hw.ChipEightCpu, key_sym, pressed: bool
 ) -> bool:
     """Update CHIP-8 key state for a host keyboard event.
 
-    Returns ``True`` if the key was mapped to a CHIP-8 keypad entry.
+    ``key_sym`` may be an SDL key code or a Tk ``keysym`` string.
+    The function returns ``True`` if the key was mapped to a CHIP-8
+    keypad entry.
     """
+    if isinstance(key_sym, str):
+        key_sym = TK_KEY_MAP.get(key_sym.lower())
+
     chip_key = KEY_MAP.get(key_sym)
     if chip_key is not None:
         cpu.key[chip_key] = 1 if pressed else 0
@@ -191,6 +218,16 @@ def main():
         sdl2.SDL_SetWindowSize(window, event.width, event.height)
 
     frame.bind("<Configure>", on_frame_resize)
+
+    def on_key_press(event):
+        process_key_event(chip8_ref[0], event.keysym, True)
+
+    def on_key_release(event):
+        process_key_event(chip8_ref[0], event.keysym, False)
+
+    root.bind_all("<KeyPress>", on_key_press)
+    root.bind_all("<KeyRelease>", on_key_release)
+    frame.focus_set()
 
     debug_win, update_debug, file_menu = create_menu(root, chip8_ref)
 

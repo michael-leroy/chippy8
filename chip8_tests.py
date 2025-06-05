@@ -318,6 +318,12 @@ def test_process_key_event():
     assert chip8emu.process_key_event(cpu, sdl2.SDLK_1, False) is True
     assert cpu.key[0x1] == 0
 
+    # Also accept Tk keysym strings
+    assert chip8emu.process_key_event(cpu, "2", True) is True
+    assert cpu.key[0x2] == 1
+    assert chip8emu.process_key_event(cpu, "2", False) is True
+    assert cpu.key[0x2] == 0
+
     original = cpu.key.copy()
     assert chip8emu.process_key_event(cpu, sdl2.SDLK_SPACE, True) is False
     assert cpu.key == original
@@ -339,6 +345,17 @@ def test_ld_vx_k_waits_for_keypress():
     cpu.emulate_cycle()
     assert cpu.V[1] == 0x2
     assert cpu.pc == 0x202
+
+
+def test_tk_to_sdl_pipeline_for_all_keys():
+    cpu = chip8_hw.ChipEightCpu()
+    mapping = chip8emu.TK_KEY_MAP
+    for keysym, sdl_key in mapping.items():
+        assert chip8emu.process_key_event(cpu, keysym, True) is True
+        expected = chip8emu.KEY_MAP[sdl_key]
+        assert cpu.key[expected] == 1
+        assert chip8emu.process_key_event(cpu, keysym, False) is True
+        assert cpu.key[expected] == 0
 
 
 
