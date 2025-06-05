@@ -111,3 +111,22 @@ def test_draw_collision_and_bounds():
     cpu.drw_vx_vy_safe(0xD121)
     assert sum(cpu.gfx) == 0
     assert cpu.V[0xF] == 1
+
+
+def test_timers_decrement_at_60hz(monkeypatch):
+    cpu = chip8_hw.ChipEightCpu()
+    cpu.delay_timer = 2
+    cpu.sound_timer = 2
+    cpu.last_timer_update = 0
+
+    times = iter([0, 1/60, 2/60])
+
+    monkeypatch.setattr(chip8_hw.time, "time", lambda: next(times))
+    cpu.update_timers()
+    assert cpu.delay_timer == 2
+    cpu.update_timers()
+    assert cpu.delay_timer == 1
+    assert cpu.sound_timer == 1
+    cpu.update_timers()
+    assert cpu.delay_timer == 0
+    assert cpu.sound_timer == 0

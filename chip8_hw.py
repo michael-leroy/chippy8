@@ -1,6 +1,7 @@
 #!/usr/bin/python
 
 import random
+import time
 
 class ChipEightCpu(object):
     def __init__(self, debug_callback=None):
@@ -45,6 +46,9 @@ class ChipEightCpu(object):
         # debug support
         self.debug = False
         self.debug_callback = debug_callback
+
+        # track last time the timers were updated
+        self.last_timer_update = time.time()
 
         self._load_fontset()
 
@@ -129,6 +133,7 @@ class ChipEightCpu(object):
         self._load_fontset()
 
         self.debug = False
+        self.last_timer_update = time.time()
 
     def load_rom(self, rom_file_path):
         #0x200-0xFFF - Program ROM and work RAM
@@ -167,17 +172,30 @@ class ChipEightCpu(object):
             handler(opcode)
         else:
             print('Unknown/Invalid opcode ' + "0x%0.4X" % opcode)
-        #Decrement timer.
-        if self.delay_timer > 0:
-            self.delay_timer -= 1
-        if self.sound_timer > 0:
-            if self.sound_timer == 1:
-                # TODO: have sound and graphics
-                print("BEEP!\n")
-            self.sound_timer -= 1
+        # Update timers at 60Hz regardless of CPU cycle rate
+        self.update_timers()
 
         if self.debug and self.debug_callback:
             self.debug_callback(self)
+
+
+    def update_timers(self):
+        """Decrement delay and sound timers at 60Hz."""
+        now = time.time()
+        elapsed = now - self.last_timer_update
+        ticks = int(elapsed * 60)
+        if ticks <= 0:
+            return
+
+        if self.delay_timer > 0:
+            self.delay_timer = max(0, self.delay_timer - ticks)
+
+        if self.sound_timer > 0:
+            if self.sound_timer <= ticks:
+                print("BEEP!\n")
+            self.sound_timer = max(0, self.sound_timer - ticks)
+
+        self.last_timer_update += ticks / 60.0
 
 
 
