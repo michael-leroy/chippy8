@@ -46,6 +46,9 @@ class ChipEightCpu(object):
         self.debug = False
         self.debug_callback = debug_callback
 
+        # store loaded ROM bytes for debug display
+        self.rom = bytearray()
+
         self._load_fontset()
 
         self.instruction_dispatch = {
@@ -129,18 +132,32 @@ class ChipEightCpu(object):
         self._load_fontset()
 
         self.debug = False
+        self.rom = bytearray()
 
     def load_rom(self, rom_file_path):
-        #0x200-0xFFF - Program ROM and work RAM
-        #0x200 == 512
-        memory_offset = 512
+        """Load a CHIP-8 ROM into memory starting at address ``0x200``.
+
+        The CPU is reset before loading so that execution begins at the
+        correct start address and any previous state is cleared.  If the ROM
+        will not fit into available memory a ``ValueError`` is raised.
+        """
+
+        # Preserve debug mode across ROM loads so the debug window doesn't
+        # become desynchronized with the CPU state.
+        debug_enabled = self.debug
+        self.reset()
+        self.debug = debug_enabled
+
+        memory_offset = 0x200
 
         with open(rom_file_path, "rb") as f:
-            byte = f.read(1)
-            while byte != b"":
-                self.memory[memory_offset] = byte[0]
-                memory_offset += 1
-                byte = f.read(1)
+            data = f.read()
+
+        if len(data) > len(self.memory) - memory_offset:
+            raise ValueError("ROM size exceeds available memory")
+
+        self.memory[memory_offset : memory_offset + len(data)] = data
+        self.rom = bytearray(data)
 
 
     def get_opcode(self):
@@ -411,9 +428,9 @@ class ChipEightCpu(object):
             sprite_data.append(self.memory[self.I + x])
         for sprite_row in range(len(sprite_data)):
             for pixel_offset in range(8):
-                location = drw_x + pixel_offset + ((drw_y + sprite_row) * 64)
-                if (drw_y + sprite_row) >= 32 or (drw_x + pixel_offset - 1) >= 64:
+                if (drw_y + sprite_row) >= 32 or (drw_x + pixel_offset) >= 64:
                     continue
+                location = drw_x + pixel_offset + ((drw_y + sprite_row) * 64)
                 drw_mask = 1 << (7 - pixel_offset)
                 curr_pixel = (sprite_data[sprite_row] & drw_mask) >> (7 - pixel_offset)
                 if curr_pixel:

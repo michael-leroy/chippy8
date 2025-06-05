@@ -362,6 +362,57 @@ def test_rom_load():
         chip.pc += 2
         assert opcode
 
+def test_load_rom_resets_state(tmp_path):
+    rom = tmp_path / "test.ch8"
+    rom.write_bytes(b"\x60\x00\x61\x01")
+
+    cpu = chip8_hw.ChipEightCpu()
+    cpu.pc = 0x300
+    cpu.memory[0x300] = 0xFF
+
+    cpu.load_rom(str(rom))
+
+    assert cpu.pc == 0x200
+    assert cpu.memory[0x200:0x204] == b"\x60\x00\x61\x01"
+    assert cpu.rom == b"\x60\x00\x61\x01"
+
+def test_load_rom_too_large(tmp_path):
+    rom = tmp_path / "big.ch8"
+    rom.write_bytes(bytes([0xAA]) * (len(chip8_hw.ChipEightCpu().memory) - 0x1FF))
+
+    cpu = chip8_hw.ChipEightCpu()
+    with pytest.raises(ValueError):
+        cpu.load_rom(str(rom))
+
+
+def test_load_rom_preserves_debug(tmp_path):
+    rom = tmp_path / "small.ch8"
+    rom.write_bytes(b"\x00\xE0")
+
+    called = []
+
+    def cb(cpu=None):
+        called.append(True)
+
+    cpu = chip8_hw.ChipEightCpu(debug_callback=cb)
+    cpu.debug = True
+    cpu.load_rom(str(rom))
+
+    assert cpu.debug is True
+    cpu.emulate_cycle()
+    assert called
+
+
+def test_load_rom_stores_rom_bytes(tmp_path):
+    rom = tmp_path / "small.ch8"
+    data = b"\x01\x02\x03\x04"
+    rom.write_bytes(data)
+
+    cpu = chip8_hw.ChipEightCpu()
+    cpu.load_rom(str(rom))
+
+    assert cpu.rom == data
+
 
 def test_process_key_event():
     cpu = chip8_hw.ChipEightCpu()
