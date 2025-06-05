@@ -144,10 +144,12 @@ def test_jmp_addr():
     chip = None
 
 def test_call_addr():
-    chip = initalize_system(0x22, 0x1c)
+    chip = initalize_system(0x22, 0x1C)
     chip.emulate_cycle()
-    assert chip.stack[0] == 512
+    assert chip.stack[0] == 514
     assert chip.pc == 540
+    chip.ret(0x00EE)
+    assert chip.pc == 514
     chip = None
 
 def test_se_vx_byte():
@@ -231,6 +233,60 @@ def test_ld_vx_vy():
     chip.V[2] = 0xFE
     chip.emulate_cycle()
     assert chip.V[1] == 0xFE
+    assert chip.pc == 514
+    chip = None
+
+def test_add_vx_byte_wrap():
+    chip = initalize_system(0x71, 0x01)
+    chip.V[1] = 0xFF
+    chip.emulate_cycle()
+    assert chip.V[1] == 0x00
+    chip = None
+
+def test_sub_vx_vy():
+    chip = initalize_system(0x81, 0x25)
+    chip.V[1] = 0x05
+    chip.V[2] = 0x03
+    chip.emulate_cycle()
+    assert chip.V[1] == 0x02
+    assert chip.V[0xF] == 1
+    chip = None
+
+    chip = initalize_system(0x81, 0x25)
+    chip.V[1] = 0x02
+    chip.V[2] = 0x05
+    chip.emulate_cycle()
+    assert chip.V[1] == 0xFD
+    assert chip.V[0xF] == 0
+    chip = None
+
+def test_shift_operations():
+    chip = initalize_system(0x81, 0x06)
+    chip.V[1] = 0x03
+    chip.emulate_cycle()
+    assert chip.V[1] == 0x01
+    assert chip.V[0xF] == 1
+    chip = None
+
+    chip = initalize_system(0x81, 0x0E)
+    chip.V[1] = 0x81
+    chip.emulate_cycle()
+    assert chip.V[1] == 0x02
+    assert chip.V[0xF] == 1
+    chip = None
+
+def test_key_skip():
+    chip = initalize_system(0xE1, 0x9E)
+    chip.V[1] = 0x2
+    chip.key[2] = 1
+    chip.emulate_cycle()
+    assert chip.pc == 516
+    chip = None
+
+    chip = initalize_system(0xE1, 0xA1)
+    chip.V[1] = 0x3
+    chip.key[3] = 1
+    chip.emulate_cycle()
     assert chip.pc == 514
     chip = None
 
