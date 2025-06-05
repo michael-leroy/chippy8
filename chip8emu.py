@@ -5,6 +5,8 @@ from tkinter import filedialog
 import sdl2
 import sdl2.ext
 import ctypes
+import math
+import array
 
 import chip8_hw
 
@@ -220,7 +222,7 @@ def main():
     root = tk.Tk()
     root.title("Chippy8")
 
-    sdl2.SDL_Init(sdl2.SDL_INIT_VIDEO)
+    sdl2.SDL_Init(sdl2.SDL_INIT_VIDEO | sdl2.SDL_INIT_AUDIO)
 
     frame = tk.Frame(root, width=WINDOW_WIDTH, height=WINDOW_HEIGHT)
     frame.pack(fill="both", expand=True)
@@ -239,6 +241,31 @@ def main():
         CHIP8_HEIGHT,
     )
     framebuffer = (ctypes.c_uint32 * (CHIP8_WIDTH * CHIP8_HEIGHT))()
+
+    # --------------------
+    # Audio setup
+    sample_rate = 44100
+    frame_samples = sample_rate // 60
+    freq = 440
+    beep_samples = array.array(
+        "h",
+        [
+            int(0.25 * 32767 * math.sin(2 * math.pi * freq * i / sample_rate))
+            for i in range(frame_samples)
+        ],
+    )
+    beep_bytes = beep_samples.tobytes()
+
+    desired = sdl2.SDL_AudioSpec()
+    desired.freq = sample_rate
+    desired.format = sdl2.AUDIO_S16SYS
+    desired.channels = 1
+    desired.samples = frame_samples
+    desired.callback = None
+    desired.userdata = None
+
+    audio_device = sdl2.SDL_OpenAudioDevice(None, 0, desired, None, 0)
+    sound_playing = False
 
     chip8_ref = [chip8_hw.ChipEightCpu()]
     rom_loaded = False
@@ -367,6 +394,17 @@ def main():
                 fps_count = 0
                 last_fps_update = now
 
+            # handle sound timer -> play beep
+            if chip8_ref[0].sound_timer > 0:
+                sdl2.SDL_QueueAudio(audio_device, beep_bytes, len(beep_bytes))
+                if not sound_playing:
+                    sdl2.SDL_PauseAudioDevice(audio_device, 0)
+                    sound_playing = True
+            elif sound_playing:
+                sdl2.SDL_ClearQueuedAudio(audio_device)
+                sdl2.SDL_PauseAudioDevice(audio_device, 1)
+                sound_playing = False
+
         if chip8_ref[0].debug:
             update_debug(chip8_ref[0])
 
@@ -376,6 +414,7 @@ def main():
 
     root.destroy()
     sdl2.SDL_DestroyRenderer(renderer)
+    sdl2.SDL_CloseAudioDevice(audio_device)
     sdl2.SDL_DestroyWindow(window)
     sdl2.SDL_Quit()
 
