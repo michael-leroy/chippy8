@@ -16,11 +16,7 @@ WINDOW_HEIGHT = 480
 
 def select_rom():
     """Open a file dialog and return the selected ROM path."""
-    root = tk.Tk()
-    root.withdraw()
-    path = filedialog.askopenfilename(title="Select CHIP-8 ROM")
-    root.destroy()
-    return path
+    return filedialog.askopenfilename(title="Select CHIP-8 ROM")
 
 
 def create_menu(root, chip8):
@@ -73,6 +69,10 @@ def create_menu(root, chip8):
     debug_win.protocol("WM_DELETE_WINDOW", on_debug_close)
 
     menu_bar = tk.Menu(root)
+    file_menu = tk.Menu(menu_bar, tearoff=0)
+    file_menu.add_command(label="Load")
+    menu_bar.add_cascade(label="File", menu=file_menu)
+
     settings = tk.Menu(menu_bar, tearoff=0)
     settings.add_checkbutton(label="Debug", variable=debug_var, command=toggle_debug)
     menu_bar.add_cascade(label="Settings", menu=settings)
@@ -80,7 +80,7 @@ def create_menu(root, chip8):
 
     chip8.debug_callback = update_debug
 
-    return debug_win
+    return debug_win, update_debug, file_menu
 
 
 def draw_screen(renderer, chip8, window):
@@ -126,18 +126,8 @@ def draw_screen(renderer, chip8, window):
 
 
 def main():
-    rom_path = select_rom()
-    if not rom_path:
-        print("No ROM selected. Exiting.")
-        return
-
     root = tk.Tk()
     root.title("Chippy8")
-
-    chip8 = chip8_hw.ChipEightCpu()
-    chip8.load_rom(rom_path)
-
-    create_menu(root, chip8)
 
     sdl2.SDL_Init(sdl2.SDL_INIT_VIDEO)
 
@@ -151,10 +141,34 @@ def main():
         window, -1, sdl2.SDL_RENDERER_ACCELERATED | sdl2.SDL_RENDERER_PRESENTVSYNC
     )
 
+    chip8 = chip8_hw.ChipEightCpu()
+    rom_loaded = False
+
+    def on_frame_resize(event):
+        sdl2.SDL_SetWindowSize(window, event.width, event.height)
+
+    frame.bind("<Configure>", on_frame_resize)
+
+    debug_win, update_debug, file_menu = create_menu(root, chip8)
+
     running = True
     last_cycle = time.time()
     last_frame = time.time()
     frame_delay = 1 / 60.0
+
+    def load_rom():
+        nonlocal chip8, rom_loaded, last_cycle, last_frame
+        path = select_rom()
+        if path:
+            chip8 = chip8_hw.ChipEightCpu(debug_callback=update_debug)
+            chip8.load_rom(path)
+            rom_loaded = True
+            chip8.update_screen = True
+            last_cycle = time.time()
+            last_frame = time.time()
+
+    file_menu.entryconfig(0, command=load_rom)
+
 
     def on_close():
         nonlocal running
@@ -168,11 +182,11 @@ def main():
                 running = False
 
         now = time.time()
-        if now - last_cycle >= 1 / 500.0:
+        if rom_loaded and now - last_cycle >= 1 / 500.0:
             chip8.emulate_cycle()
             last_cycle = now
 
-        if now - last_frame >= frame_delay or chip8.update_screen:
+        if rom_loaded and (now - last_frame >= frame_delay or chip8.update_screen):
             draw_screen(renderer, chip8, window)
             chip8.update_screen = False
             last_frame = now
