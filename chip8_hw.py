@@ -496,9 +496,7 @@ class ChipEightCpu(object):
         '''
         Fx29 - LD F, Vx
         '''
-        # Font characters are stored starting at 0x50. Each character is 5
-        # bytes long, so jump to the correct offset for the value in Vx.
-        self.I = 0x50 + (self.V[self.v_x] * 5)
+        self.I = self.V[self.v_x] * 5
         self.pc += 2
 
     def ld_b_vx(self, opcode):
