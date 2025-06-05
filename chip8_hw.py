@@ -7,8 +7,8 @@ class ChipEightCpu(object):
     def __init__(self, debug_callback=None):
         #chip8 has 4k of system ram
         '''Systems memory map:
-        0x000-0x1FF - Chip 8 interpreter (contains font set in emu)
-        0x050-0x0A0 - Used for the built in 4x5 pixel font set (0-F)
+        0x000-0x1FF - Chip 8 interpreter
+        0x050-0x09F - Built in 4x5 pixel font set (0-F)
         0x200-0xFFF - Program ROM and work RAM
         '''
         self.CHIP8MAXMEM = 4096
@@ -94,7 +94,7 @@ class ChipEightCpu(object):
         }
 
     def _load_fontset(self):
-        """Load the CHIP-8 fontset into memory starting at address 0."""
+        """Load the CHIP-8 fontset into memory starting at 0x50."""
         fontset = [
             0xF0, 0x90, 0x90, 0x90, 0xF0,  # 0
             0x20, 0x60, 0x20, 0x20, 0x70,  # 1
@@ -114,7 +114,7 @@ class ChipEightCpu(object):
             0xF0, 0x80, 0xF0, 0x80, 0x80   # F
         ]
 
-        start = 0x000
+        start = 0x50
         for i, byte in enumerate(fontset):
             self.memory[start + i] = byte
 
@@ -543,7 +543,7 @@ class ChipEightCpu(object):
         '''
         Fx29 - LD F, Vx
         '''
-        self.I = self.V[self.v_x] * 5
+        self.I = 0x50 + self.V[self.v_x] * 5
         self.pc += 2
 
     def ld_b_vx(self, opcode):

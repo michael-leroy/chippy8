@@ -47,9 +47,9 @@ def test_reset():
         0xF0, 0x80, 0xF0, 0x80, 0x80   # F
     ]
     for i, b in enumerate(fontset):
-        assert chip.memory[i] == b
+        assert chip.memory[0x50 + i] == b
     for idx, mem in enumerate(chip.memory):
-        if 0 <= idx < len(fontset):
+        if 0x50 <= idx < 0x50 + len(fontset):
             continue
         assert mem == 0
     for registers in chip.V:
@@ -86,7 +86,7 @@ def test_fontset_memory_contents():
         0xF0, 0x80, 0xF0, 0x80, 0xF0,
         0xF0, 0x80, 0xF0, 0x80, 0x80
     ]
-    mem_slice = list(cpu.memory[:len(expected)])
+    mem_slice = list(cpu.memory[0x50:0x50 + len(expected)])
     assert mem_slice == expected
 
 def test_x0_dispatch():
@@ -327,7 +327,7 @@ def test_ld_f_vx_sets_font_address():
     cpu.V[1] = 0xA
     cpu.v_x = 1
     cpu.ld_f_vx(0xF129)
-    assert cpu.I == 0xA * 5
+    assert cpu.I == 0x50 + 0xA * 5
 
 def test_key_skip():
     chip = initalize_system(0xE1, 0x9E)
