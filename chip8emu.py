@@ -179,7 +179,7 @@ def create_menu(root, chip8_ref):
 
     chip8_ref[0].debug_callback = update_debug
 
-    return debug_win, update_debug, file_menu, perf
+    return debug_win, update_debug, toggle_debug, file_menu, perf
 
 
 def draw_screen(renderer, chip8, window):
@@ -267,7 +267,7 @@ def main():
     root.bind_all("<KeyRelease>", on_key_release)
     frame.focus_set()
 
-    debug_win, update_debug, file_menu, perf = create_menu(root, chip8_ref)
+    debug_win, update_debug, toggle_debug, file_menu, perf = create_menu(root, chip8_ref)
 
     running = True
     paused = False
