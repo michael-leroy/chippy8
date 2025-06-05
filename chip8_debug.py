@@ -8,11 +8,8 @@ import ctypes
 
 import chip8_hw
 
-# Size of the CHIP-8 display
 CHIP8_WIDTH = 64
 CHIP8_HEIGHT = 32
-
-# Initial window size (4:3 aspect ratio)
 WINDOW_WIDTH = 640
 WINDOW_HEIGHT = 480
 
@@ -26,8 +23,37 @@ def select_rom():
     return path
 
 
+def create_menu(root, chip8):
+    debug_var = tk.BooleanVar(value=False)
+    debug_win = tk.Toplevel(root)
+    debug_win.title("Debug")
+    debug_text = tk.Text(debug_win, width=80, height=30)
+    debug_text.pack(fill="both", expand=True)
+    debug_win.withdraw()
+
+    def toggle_debug():
+        chip8.debug = debug_var.get()
+        if chip8.debug:
+            debug_win.deiconify()
+        else:
+            debug_win.withdraw()
+
+    menu_bar = tk.Menu(root)
+    settings = tk.Menu(menu_bar, tearoff=0)
+    settings.add_checkbutton(label="Debug", variable=debug_var, command=toggle_debug)
+    menu_bar.add_cascade(label="Settings", menu=settings)
+    root.config(menu=menu_bar)
+
+    def log_debug(message: str):
+        debug_text.insert(tk.END, message + "\n")
+        debug_text.see(tk.END)
+
+    chip8.debug_callback = log_debug
+
+    return debug_win
+
+
 def draw_screen(renderer, chip8, window):
-    """Render the current CHIP-8 framebuffer with window scaling."""
     win_w = ctypes.c_int()
     win_h = ctypes.c_int()
     sdl2.SDL_GetWindowSize(window, ctypes.byref(win_w), ctypes.byref(win_h))
@@ -75,8 +101,13 @@ def main():
         print("No ROM selected. Exiting.")
         return
 
+    root = tk.Tk()
+    root.title("Chippy8")
+
     chip8 = chip8_hw.ChipEightCpu()
     chip8.load_rom(rom_path)
+
+    create_menu(root, chip8)
 
     sdl2.SDL_Init(sdl2.SDL_INIT_VIDEO)
     window = sdl2.SDL_CreateWindow(
@@ -95,6 +126,13 @@ def main():
     last_cycle = time.time()
     last_frame = time.time()
     frame_delay = 1 / 60.0
+
+    def on_close():
+        nonlocal running
+        running = False
+
+    root.protocol("WM_DELETE_WINDOW", on_close)
+
     while running:
         for event in sdl2.ext.get_events():
             if event.type == sdl2.SDL_QUIT:
@@ -110,6 +148,8 @@ def main():
             chip8.update_screen = False
             last_frame = now
 
+        root.update_idletasks()
+        root.update()
         sdl2.SDL_Delay(1)
 
     sdl2.SDL_DestroyRenderer(renderer)

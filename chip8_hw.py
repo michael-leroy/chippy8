@@ -3,7 +3,7 @@
 import random
 
 class ChipEightCpu(object):
-    def __init__(self):
+    def __init__(self, debug_callback=None):
         #chip8 has 4k of system ram
         '''Systems memory map:
         0x000-0x1FF - Chip 8 interpreter (contains font set in emu)
@@ -41,6 +41,10 @@ class ChipEightCpu(object):
 
         #The chip8 system has 16 keys (0x0 - 0xF)
         self.key = [0] * 16
+
+        # debug support
+        self.debug = False
+        self.debug_callback = debug_callback
 
         #TODO: load font set.
 
@@ -99,6 +103,8 @@ class ChipEightCpu(object):
 
         #TODO: load font set.
 
+        self.debug = False
+
     def load_rom(self, rom_file_path):
         #0x200-0xFFF - Program ROM and work RAM
         #0x200 == 512
@@ -121,8 +127,8 @@ class ChipEightCpu(object):
         return opcode
 
     def emulate_cycle(self):
-
         opcode = self.get_opcode()
+        old_pc = self.pc
         #Now that we have the opcode we need one big if statement to handle
         #all the various opcodes. Maybe this can be cleaned up later since python
         #has no 'switch' statement.
@@ -144,6 +150,14 @@ class ChipEightCpu(object):
                 # TODO: have sound and graphics
                 print("BEEP!\n")
             self.sound_timer -= 1
+
+        if self.debug and self.debug_callback:
+            debug_msg = (
+                f"PC: {old_pc:03X} OPCODE: {opcode:04X} "
+                f"I: {self.I:03X} DT: {self.delay_timer} ST: {self.sound_timer} "
+                f"V: {[hex(v) for v in self.V]}"
+            )
+            self.debug_callback(debug_msg)
 
 
 
