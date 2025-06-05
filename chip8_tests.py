@@ -323,6 +323,24 @@ def test_process_key_event():
     assert cpu.key == original
 
 
+def test_ld_vx_k_waits_for_keypress():
+    cpu = chip8_hw.ChipEightCpu()
+    # Load Fx0A at 0x200 where x = 1
+    cpu.memory[0x200] = 0xF1
+    cpu.memory[0x201] = 0x0A
+
+    # No key pressed yet so PC should not advance
+    cpu.emulate_cycle()
+    assert cpu.pc == 0x200
+    assert cpu.V[1] == 0
+
+    # Press key mapped to keypad 2
+    chip8emu.process_key_event(cpu, sdl2.SDLK_2, True)
+    cpu.emulate_cycle()
+    assert cpu.V[1] == 0x2
+    assert cpu.pc == 0x202
+
+
 
 
 # def test_0x00E0():
