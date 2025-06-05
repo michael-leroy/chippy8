@@ -8,6 +8,8 @@ import ctypes
 
 import chip8_hw
 
+CYCLE_HZ = 700.0
+
 # Mapping of host keyboard keys to CHIP-8 keypad indices.
 # This follows the common layout:
 # 1 2 3 4 -> 1 2 3 C
@@ -90,7 +92,7 @@ def create_menu(root, chip8_ref):
     debug_var = tk.BooleanVar(value=False)
     debug_win = tk.Toplevel(root)
     debug_win.title("Debug")
-    debug_win.geometry("300x260")
+    debug_win.geometry("300x300")
 
     labels = {}
     row = 0
@@ -107,6 +109,13 @@ def create_menu(root, chip8_ref):
     labels["ST"].grid(row=row, column=0, columnspan=2, sticky="w")
     row += 1
 
+    labels["CPS"] = tk.Label(debug_win, text="CPS: 0")
+    labels["CPS"].grid(row=row, column=0, columnspan=2, sticky="w")
+    row += 1
+    labels["FPS"] = tk.Label(debug_win, text="FPS: 0")
+    labels["FPS"].grid(row=row, column=0, columnspan=2, sticky="w")
+    row += 1
+
     for i in range(16):
         tk.Label(debug_win, text=f"V{i:X}:").grid(row=row + i // 2, column=(i % 2) * 2, sticky="e")
         labels[f"V{i}"] = tk.Label(debug_win, text="00")
@@ -115,13 +124,18 @@ def create_menu(root, chip8_ref):
 
     debug_win.withdraw()
 
-    def update_debug(cpu):
-        labels["PC"].config(text=f"PC: {cpu.pc:03X}")
-        labels["I"].config(text=f"I: {cpu.I:03X}")
-        labels["DT"].config(text=f"DT: {cpu.delay_timer:02X}")
-        labels["ST"].config(text=f"ST: {cpu.sound_timer:02X}")
-        for i in range(16):
-            labels[f"V{i}"].config(text=f"{cpu.V[i]:02X}")
+    perf = {"cps": 0, "fps": 0}
+
+    def update_debug(cpu=None):
+        if cpu is not None:
+            labels["PC"].config(text=f"PC: {cpu.pc:03X}")
+            labels["I"].config(text=f"I: {cpu.I:03X}")
+            labels["DT"].config(text=f"DT: {cpu.delay_timer:02X}")
+            labels["ST"].config(text=f"ST: {cpu.sound_timer:02X}")
+            for i in range(16):
+                labels[f"V{i}"].config(text=f"{cpu.V[i]:02X}")
+        labels["CPS"].config(text=f"CPS: {perf['cps']:.0f}")
+        labels["FPS"].config(text=f"FPS: {perf['fps']:.0f}")
 
     def toggle_debug():
         chip8_ref[0].debug = debug_var.get()
@@ -150,7 +164,7 @@ def create_menu(root, chip8_ref):
 
     chip8_ref[0].debug_callback = update_debug
 
-    return debug_win, update_debug, file_menu
+    return debug_win, update_debug, file_menu, perf
 
 
 def draw_screen(renderer, chip8, window):
@@ -229,23 +243,35 @@ def main():
     root.bind_all("<KeyRelease>", on_key_release)
     frame.focus_set()
 
-    debug_win, update_debug, file_menu = create_menu(root, chip8_ref)
+    debug_win, update_debug, file_menu, perf = create_menu(root, chip8_ref)
 
     running = True
-    last_cycle = time.time()
-    last_frame = time.time()
     frame_delay = 1 / 60.0
+    cycle_hz = CYCLE_HZ
+
+    last_time = time.time()
+    cycle_accum = 0.0
+    last_frame = last_time
+    cycles_executed = 0
+    last_cps_update = last_time
+    fps_count = 0
+    last_fps_update = last_time
 
     def load_rom():
-        nonlocal rom_loaded, last_cycle, last_frame
+        nonlocal rom_loaded, last_time, last_frame, cycle_accum, cycles_executed, last_cps_update, fps_count, last_fps_update
         path = select_rom()
         if path:
             chip8_ref[0] = chip8_hw.ChipEightCpu(debug_callback=update_debug)
             chip8_ref[0].load_rom(path)
             rom_loaded = True
             chip8_ref[0].update_screen = True
-            last_cycle = time.time()
-            last_frame = time.time()
+            last_time = time.time()
+            cycle_accum = 0.0
+            last_frame = last_time
+            cycles_executed = 0
+            last_cps_update = last_time
+            fps_count = 0
+            last_fps_update = last_time
 
     file_menu.entryconfig(0, command=load_rom)
 
@@ -272,14 +298,34 @@ def main():
                 process_key_event(chip8_ref[0], event.key.keysym.sym, False)
 
         now = time.time()
-        if rom_loaded and now - last_cycle >= 1 / 500.0:
-            chip8_ref[0].emulate_cycle()
-            last_cycle = now
+        dt = now - last_time
+        last_time = now
 
-        if rom_loaded and (now - last_frame >= frame_delay or chip8_ref[0].update_screen):
-            draw_screen(renderer, chip8_ref[0], window)
-            chip8_ref[0].update_screen = False
-            last_frame = now
+        if rom_loaded:
+            cycle_accum += dt * cycle_hz
+            while cycle_accum >= 1.0:
+                chip8_ref[0].emulate_cycle()
+                cycle_accum -= 1.0
+                cycles_executed += 1
+
+            if now - last_cps_update >= 1.0:
+                perf["cps"] = cycles_executed / (now - last_cps_update)
+                cycles_executed = 0
+                last_cps_update = now
+
+            if now - last_frame >= frame_delay or chip8_ref[0].update_screen:
+                draw_screen(renderer, chip8_ref[0], window)
+                chip8_ref[0].update_screen = False
+                last_frame = now
+                fps_count += 1
+
+            if now - last_fps_update >= 1.0:
+                perf["fps"] = fps_count / (now - last_fps_update)
+                fps_count = 0
+                last_fps_update = now
+
+        if chip8_ref[0].debug:
+            update_debug()
 
         root.update_idletasks()
         root.update()
