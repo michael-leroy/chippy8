@@ -131,6 +131,7 @@ def create_menu(root, chip8_ref):
     debug_win.withdraw()
 
     perf = {"cps": 0, "fps": 0}
+    mem_cache = [""] * (len(chip8_ref[0].memory) // 16)
 
     def update_debug(cpu=None):
         if cpu is not None:
@@ -141,13 +142,19 @@ def create_menu(root, chip8_ref):
             for i in range(16):
                 labels[f"V{i}"].config(text=f"{cpu.V[i]:02X}")
 
-            mem_lines = []
             for addr in range(0, len(cpu.memory), 16):
                 chunk = cpu.memory[addr : addr + 16]
                 chunk_hex = " ".join(f"{b:02X}" for b in chunk)
-                mem_lines.append(f"{addr:03X}: {chunk_hex}")
-            mem_text.delete("1.0", tk.END)
-            mem_text.insert("1.0", "\n".join(mem_lines))
+                line = f"{addr:03X}: {chunk_hex}"
+                idx = addr // 16
+                if mem_cache[idx] != line:
+                    if mem_cache[idx] == "":
+                        mem_text.insert(tk.END, line + "\n")
+                    else:
+                        ln = idx + 1
+                        mem_text.delete(f"{ln}.0", f"{ln}.0 lineend")
+                        mem_text.insert(f"{ln}.0", line)
+                    mem_cache[idx] = line
 
         labels["CPS"].config(text=f"CPS: {perf['cps']:.0f}")
         labels["FPS"].config(text=f"FPS: {perf['fps']:.0f}")
