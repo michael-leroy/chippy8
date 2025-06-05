@@ -131,16 +131,24 @@ class ChipEightCpu(object):
         self.debug = False
 
     def load_rom(self, rom_file_path):
-        #0x200-0xFFF - Program ROM and work RAM
-        #0x200 == 512
-        memory_offset = 512
+        """Load a CHIP-8 ROM into memory starting at address ``0x200``.
+
+        The CPU is reset before loading so that execution begins at the
+        correct start address and any previous state is cleared.  If the ROM
+        will not fit into available memory a ``ValueError`` is raised.
+        """
+
+        self.reset()
+
+        memory_offset = 0x200
 
         with open(rom_file_path, "rb") as f:
-            byte = f.read(1)
-            while byte != b"":
-                self.memory[memory_offset] = byte[0]
-                memory_offset += 1
-                byte = f.read(1)
+            data = f.read()
+
+        if len(data) > len(self.memory) - memory_offset:
+            raise ValueError("ROM size exceeds available memory")
+
+        self.memory[memory_offset : memory_offset + len(data)] = data
 
 
     def get_opcode(self):

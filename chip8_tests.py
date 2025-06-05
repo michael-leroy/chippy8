@@ -362,6 +362,27 @@ def test_rom_load():
         chip.pc += 2
         assert opcode
 
+def test_load_rom_resets_state(tmp_path):
+    rom = tmp_path / "test.ch8"
+    rom.write_bytes(b"\x60\x00\x61\x01")
+
+    cpu = chip8_hw.ChipEightCpu()
+    cpu.pc = 0x300
+    cpu.memory[0x300] = 0xFF
+
+    cpu.load_rom(str(rom))
+
+    assert cpu.pc == 0x200
+    assert cpu.memory[0x200:0x204] == b"\x60\x00\x61\x01"
+
+def test_load_rom_too_large(tmp_path):
+    rom = tmp_path / "big.ch8"
+    rom.write_bytes(bytes([0xAA]) * (len(chip8_hw.ChipEightCpu().memory) - 0x1FF))
+
+    cpu = chip8_hw.ChipEightCpu()
+    with pytest.raises(ValueError):
+        cpu.load_rom(str(rom))
+
 
 def test_process_key_event():
     cpu = chip8_hw.ChipEightCpu()
