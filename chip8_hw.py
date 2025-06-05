@@ -400,8 +400,8 @@ class ChipEightCpu(object):
         the net.
         TODO: test if this actually works
         '''
-        drw_x = min(self.V[self.v_x], 63)
-        drw_y = min(self.V[self.v_y], 31)
+        drw_x = self.V[self.v_x]
+        drw_y = self.V[self.v_y]
         drw_height = opcode & 0x000F
         sprite_data = []
         #set VF to zero because there has been no collision yet
@@ -410,12 +410,10 @@ class ChipEightCpu(object):
         for x in range(drw_height):
             sprite_data.append(self.memory[self.I + x])
         for sprite_row in range(len(sprite_data)):
-            if drw_y + sprite_row >= 32:
-                break
             for pixel_offset in range(8):
-                if drw_x + pixel_offset >= 64:
-                    continue
                 location = drw_x + pixel_offset + ((drw_y + sprite_row) * 64)
+                if (drw_y + sprite_row) >= 32 or (drw_x + pixel_offset - 1) >= 64:
+                    continue
                 drw_mask = 1 << (7 - pixel_offset)
                 curr_pixel = (sprite_data[sprite_row] & drw_mask) >> (7 - pixel_offset)
                 if curr_pixel:
@@ -498,7 +496,7 @@ class ChipEightCpu(object):
         '''
         Fx29 - LD F, Vx
         '''
-        self.I = 0x50 + self.V[self.v_x] * 5
+        self.I = self.V[self.v_x] * 5
         self.pc += 2
 
     def ld_b_vx(self, opcode):
