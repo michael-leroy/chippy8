@@ -130,17 +130,9 @@ def create_menu(root, chip8_ref):
     debug_win.columnconfigure(3, weight=1)
     row += 1
 
-    tk.Label(debug_win, text="GFX").grid(row=row, column=0, sticky="w")
-    row += 1
-    gfx_text = tk.Text(debug_win, width=70, height=20, font=("Courier", 8))
-    gfx_text.grid(row=row, column=0, columnspan=4, sticky="nsew")
-    debug_win.rowconfigure(row, weight=1)
-    row += 1
-
     debug_win.withdraw()
 
     perf = {"cps": 0, "fps": 0}
-    gfx_cache = ["" for _ in range(CHIP8_HEIGHT)]
 
     def update_rom_view(cpu):
         rom_text.delete("1.0", tk.END)
@@ -159,18 +151,6 @@ def create_menu(root, chip8_ref):
             for i in range(16):
                 labels[f"V{i}"].config(text=f"{cpu.V[i]:02X}")
 
-            for row in range(CHIP8_HEIGHT):
-                start = row * CHIP8_WIDTH
-                chunk = cpu.gfx[start : start + CHIP8_WIDTH]
-                line = "".join("#" if b else "." for b in chunk)
-                if gfx_cache[row] != line:
-                    if gfx_cache[row] == "":
-                        gfx_text.insert(tk.END, line + "\n")
-                    else:
-                        ln = row + 1
-                        gfx_text.delete(f"{ln}.0", f"{ln}.0 lineend")
-                        gfx_text.insert(f"{ln}.0", line)
-                    gfx_cache[row] = line
 
         labels["CPS"].config(text=f"CPS: {perf['cps']:.0f}")
         labels["FPS"].config(text=f"FPS: {perf['fps']:.0f}")

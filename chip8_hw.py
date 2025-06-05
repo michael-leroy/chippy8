@@ -428,9 +428,9 @@ class ChipEightCpu(object):
             sprite_data.append(self.memory[self.I + x])
         for sprite_row in range(len(sprite_data)):
             for pixel_offset in range(8):
-                location = drw_x + pixel_offset + ((drw_y + sprite_row) * 64)
-                if (drw_y + sprite_row) >= 32 or (drw_x + pixel_offset - 1) >= 64:
+                if (drw_y + sprite_row) >= 32 or (drw_x + pixel_offset) >= 64:
                     continue
+                location = drw_x + pixel_offset + ((drw_y + sprite_row) * 64)
                 drw_mask = 1 << (7 - pixel_offset)
                 curr_pixel = (sprite_data[sprite_row] & drw_mask) >> (7 - pixel_offset)
                 if curr_pixel:
