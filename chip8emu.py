@@ -8,6 +8,39 @@ import ctypes
 
 import chip8_hw
 
+# Mapping of host keyboard keys to CHIP-8 keypad indices.
+# This follows the common layout:
+# 1 2 3 4 -> 1 2 3 C
+# Q W E R -> 4 5 6 D
+# A S D F -> 7 8 9 E
+# Z X C V -> A 0 B F
+KEY_MAP = {
+    sdl2.SDLK_1: 0x1,
+    sdl2.SDLK_2: 0x2,
+    sdl2.SDLK_3: 0x3,
+    sdl2.SDLK_4: 0xC,
+    sdl2.SDLK_q: 0x4,
+    sdl2.SDLK_w: 0x5,
+    sdl2.SDLK_e: 0x6,
+    sdl2.SDLK_r: 0xD,
+    sdl2.SDLK_a: 0x7,
+    sdl2.SDLK_s: 0x8,
+    sdl2.SDLK_d: 0x9,
+    sdl2.SDLK_f: 0xE,
+    sdl2.SDLK_z: 0xA,
+    sdl2.SDLK_x: 0x0,
+    sdl2.SDLK_c: 0xB,
+    sdl2.SDLK_v: 0xF,
+}
+
+
+def process_key_event(cpu: chip8_hw.ChipEightCpu, key_sym: int, pressed: bool) -> None:
+    """Update CHIP-8 key state for a host keyboard event."""
+    chip_key = KEY_MAP.get(key_sym)
+    if chip_key is not None:
+        cpu.key[chip_key] = 1 if pressed else 0
+
+
 CHIP8_WIDTH = 64
 CHIP8_HEIGHT = 32
 WINDOW_WIDTH = 640
@@ -189,6 +222,10 @@ def main():
         for event in sdl2.ext.get_events():
             if event.type == sdl2.SDL_QUIT:
                 running = False
+            elif event.type == sdl2.SDL_KEYDOWN:
+                process_key_event(chip8_ref[0], event.key.keysym.sym, True)
+            elif event.type == sdl2.SDL_KEYUP:
+                process_key_event(chip8_ref[0], event.key.keysym.sym, False)
 
         now = time.time()
         if rom_loaded and now - last_cycle >= 1 / 500.0:

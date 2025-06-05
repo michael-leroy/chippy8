@@ -1,6 +1,8 @@
 #!/usr/bin/python
 #uses pytest/py.test - pytest.org
 import chip8_hw
+import chip8emu
+import sdl2
 import os
 import pytest
 from unittest import mock
@@ -307,6 +309,18 @@ def test_rom_load():
         memory_offset += 2
         chip.pc += 2
         assert opcode
+
+
+def test_process_key_event():
+    cpu = chip8_hw.ChipEightCpu()
+    chip8emu.process_key_event(cpu, sdl2.SDLK_1, True)
+    assert cpu.key[0x1] == 1
+    chip8emu.process_key_event(cpu, sdl2.SDLK_1, False)
+    assert cpu.key[0x1] == 0
+
+    original = cpu.key.copy()
+    chip8emu.process_key_event(cpu, sdl2.SDLK_SPACE, True)
+    assert cpu.key == original
 
 
 
