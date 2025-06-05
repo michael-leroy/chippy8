@@ -77,11 +77,11 @@ def test_draw_collision_and_bounds():
     cpu.v_y = 2
     cpu.V[1] = 63
     cpu.V[2] = 0
-    cpu.drw_vx_vy(0xD121)
+    cpu.drw_vx_vy_safe(0xD121)
     assert sum(cpu.gfx) == 1
     assert cpu.gfx[63] == 1
     assert cpu.gfx[64] == 0
     assert cpu.V[0xF] == 0
-    cpu.drw_vx_vy(0xD121)
+    cpu.drw_vx_vy_safe(0xD121)
     assert sum(cpu.gfx) == 0
     assert cpu.V[0xF] == 1

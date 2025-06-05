@@ -73,7 +73,7 @@ class ChipEightCpu(object):
                 0xA000 : self.ld_I,
                 0xB000 : self.jp_v0,
                 0xC000 : self.rnd_vx_byte,
-                0xD000 : self.drw_vx_vy,
+                0xD000 : self.drw_vx_vy_safe,
                 0xE000 : self.xE_dispatch,
                 0xE00E : self.skp_vx,
                 0xE001 : self.sknp_vx,
@@ -412,7 +412,7 @@ class ChipEightCpu(object):
         for sprite_row in range(len(sprite_data)):
             for pixel_offset in range(8):
                 location = drw_x + pixel_offset + ((drw_y + sprite_row) * 64)
-                if (drw_y + sprite_row) >= 32 or (drw_x + pixel_offset) >= 64:
+                if (drw_y + sprite_row) >= 32 or (drw_x + pixel_offset - 1) >= 64:
                     continue
                 drw_mask = 1 << (7 - pixel_offset)
                 curr_pixel = (sprite_data[sprite_row] & drw_mask) >> (7 - pixel_offset)
@@ -420,7 +420,36 @@ class ChipEightCpu(object):
                     if self.gfx[location] == 1:
                         self.V[0xF] = 1
                     self.gfx[location] ^= 1
-                
+
+        self.update_screen = True
+        self.pc += 2
+
+    def drw_vx_vy_safe(self, opcode):
+        """
+        Safer DRW routine that prevents drawing past the screen bounds.
+        """
+        drw_x = self.V[self.v_x]
+        drw_y = self.V[self.v_y]
+        drw_height = opcode & 0x000F
+        self.V[0xF] = 0
+        sprite_data = [self.memory[self.I + x] for x in range(drw_height)]
+
+        for sprite_row in range(len(sprite_data)):
+            y = drw_y + sprite_row
+            if y >= 32:
+                continue
+            for pixel_offset in range(8):
+                x = drw_x + pixel_offset
+                if x >= 64:
+                    continue
+                location = x + (y * 64)
+                drw_mask = 1 << (7 - pixel_offset)
+                curr_pixel = (sprite_data[sprite_row] & drw_mask) >> (7 - pixel_offset)
+                if curr_pixel:
+                    if self.gfx[location] == 1:
+                        self.V[0xF] = 1
+                    self.gfx[location] ^= 1
+
         self.update_screen = True
         self.pc += 2
 
