@@ -1,6 +1,8 @@
 #!/usr/bin/python
 #uses pytest/py.test - pytest.org
 import chip8_hw
+import chip8emu
+import sdl2
 import os
 import pytest
 from unittest import mock
@@ -307,6 +309,53 @@ def test_rom_load():
         memory_offset += 2
         chip.pc += 2
         assert opcode
+
+
+def test_process_key_event():
+    cpu = chip8_hw.ChipEightCpu()
+    assert chip8emu.process_key_event(cpu, sdl2.SDLK_1, True) is True
+    assert cpu.key[0x1] == 1
+    assert chip8emu.process_key_event(cpu, sdl2.SDLK_1, False) is True
+    assert cpu.key[0x1] == 0
+
+    # Also accept Tk keysym strings
+    assert chip8emu.process_key_event(cpu, "2", True) is True
+    assert cpu.key[0x2] == 1
+    assert chip8emu.process_key_event(cpu, "2", False) is True
+    assert cpu.key[0x2] == 0
+
+    original = cpu.key.copy()
+    assert chip8emu.process_key_event(cpu, sdl2.SDLK_SPACE, True) is False
+    assert cpu.key == original
+
+
+def test_ld_vx_k_waits_for_keypress():
+    cpu = chip8_hw.ChipEightCpu()
+    # Load Fx0A at 0x200 where x = 1
+    cpu.memory[0x200] = 0xF1
+    cpu.memory[0x201] = 0x0A
+
+    # No key pressed yet so PC should not advance
+    cpu.emulate_cycle()
+    assert cpu.pc == 0x200
+    assert cpu.V[1] == 0
+
+    # Press key mapped to keypad 2
+    chip8emu.process_key_event(cpu, sdl2.SDLK_2, True)
+    cpu.emulate_cycle()
+    assert cpu.V[1] == 0x2
+    assert cpu.pc == 0x202
+
+
+def test_tk_to_sdl_pipeline_for_all_keys():
+    cpu = chip8_hw.ChipEightCpu()
+    mapping = chip8emu.TK_KEY_MAP
+    for keysym, sdl_key in mapping.items():
+        assert chip8emu.process_key_event(cpu, keysym, True) is True
+        expected = chip8emu.KEY_MAP[sdl_key]
+        assert cpu.key[expected] == 1
+        assert chip8emu.process_key_event(cpu, keysym, False) is True
+        assert cpu.key[expected] == 0
 
 
 
