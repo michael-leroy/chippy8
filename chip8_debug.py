@@ -27,9 +27,37 @@ def create_menu(root, chip8):
     debug_var = tk.BooleanVar(value=False)
     debug_win = tk.Toplevel(root)
     debug_win.title("Debug")
-    debug_text = tk.Text(debug_win, width=80, height=30)
-    debug_text.pack(fill="both", expand=True)
+
+    labels = {}
+    row = 0
+    labels["PC"] = tk.Label(debug_win, text="PC: 000")
+    labels["PC"].grid(row=row, column=0, columnspan=2, sticky="w")
+    row += 1
+    labels["I"] = tk.Label(debug_win, text="I: 000")
+    labels["I"].grid(row=row, column=0, columnspan=2, sticky="w")
+    row += 1
+    labels["DT"] = tk.Label(debug_win, text="DT: 00")
+    labels["DT"].grid(row=row, column=0, columnspan=2, sticky="w")
+    row += 1
+    labels["ST"] = tk.Label(debug_win, text="ST: 00")
+    labels["ST"].grid(row=row, column=0, columnspan=2, sticky="w")
+    row += 1
+
+    for i in range(16):
+        tk.Label(debug_win, text=f"V{i:X}:").grid(row=row + i // 2, column=(i % 2) * 2, sticky="e")
+        labels[f"V{i}"] = tk.Label(debug_win, text="00")
+        labels[f"V{i}"].grid(row=row + i // 2, column=(i % 2) * 2 + 1, sticky="w")
+    row += 8
+
     debug_win.withdraw()
+
+    def update_debug(cpu):
+        labels["PC"].config(text=f"PC: {cpu.pc:03X}")
+        labels["I"].config(text=f"I: {cpu.I:03X}")
+        labels["DT"].config(text=f"DT: {cpu.delay_timer:02X}")
+        labels["ST"].config(text=f"ST: {cpu.sound_timer:02X}")
+        for i in range(16):
+            labels[f"V{i}"].config(text=f"{cpu.V[i]:02X}")
 
     def toggle_debug():
         chip8.debug = debug_var.get()
@@ -38,17 +66,19 @@ def create_menu(root, chip8):
         else:
             debug_win.withdraw()
 
+    def on_debug_close():
+        debug_var.set(False)
+        toggle_debug()
+
+    debug_win.protocol("WM_DELETE_WINDOW", on_debug_close)
+
     menu_bar = tk.Menu(root)
     settings = tk.Menu(menu_bar, tearoff=0)
     settings.add_checkbutton(label="Debug", variable=debug_var, command=toggle_debug)
     menu_bar.add_cascade(label="Settings", menu=settings)
     root.config(menu=menu_bar)
 
-    def log_debug(message: str):
-        debug_text.insert(tk.END, message + "\n")
-        debug_text.see(tk.END)
-
-    chip8.debug_callback = log_debug
+    chip8.debug_callback = update_debug
 
     return debug_win
 
@@ -110,14 +140,13 @@ def main():
     create_menu(root, chip8)
 
     sdl2.SDL_Init(sdl2.SDL_INIT_VIDEO)
-    window = sdl2.SDL_CreateWindow(
-        b"Chippy8",
-        sdl2.SDL_WINDOWPOS_CENTERED,
-        sdl2.SDL_WINDOWPOS_CENTERED,
-        WINDOW_WIDTH,
-        WINDOW_HEIGHT,
-        sdl2.SDL_WINDOW_RESIZABLE,
-    )
+
+    frame = tk.Frame(root, width=WINDOW_WIDTH, height=WINDOW_HEIGHT)
+    frame.pack(fill="both", expand=True)
+    root.update_idletasks()
+    root.update()
+
+    window = sdl2.SDL_CreateWindowFrom(ctypes.c_void_p(frame.winfo_id()))
     renderer = sdl2.SDL_CreateRenderer(
         window, -1, sdl2.SDL_RENDERER_ACCELERATED | sdl2.SDL_RENDERER_PRESENTVSYNC
     )

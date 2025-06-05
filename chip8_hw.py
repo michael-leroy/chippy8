@@ -152,12 +152,7 @@ class ChipEightCpu(object):
             self.sound_timer -= 1
 
         if self.debug and self.debug_callback:
-            debug_msg = (
-                f"PC: {old_pc:03X} OPCODE: {opcode:04X} "
-                f"I: {self.I:03X} DT: {self.delay_timer} ST: {self.sound_timer} "
-                f"V: {[hex(v) for v in self.V]}"
-            )
-            self.debug_callback(debug_msg)
+            self.debug_callback(self)
 
 
 
