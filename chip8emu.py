@@ -130,17 +130,17 @@ def create_menu(root, chip8_ref):
     debug_win.columnconfigure(3, weight=1)
     row += 1
 
-    tk.Label(debug_win, text="RAM").grid(row=row, column=0, sticky="w")
+    tk.Label(debug_win, text="GFX").grid(row=row, column=0, sticky="w")
     row += 1
-    mem_text = tk.Text(debug_win, width=48, height=10, font=("Courier", 8))
-    mem_text.grid(row=row, column=0, columnspan=4, sticky="nsew")
+    gfx_text = tk.Text(debug_win, width=70, height=20, font=("Courier", 8))
+    gfx_text.grid(row=row, column=0, columnspan=4, sticky="nsew")
     debug_win.rowconfigure(row, weight=1)
     row += 1
 
     debug_win.withdraw()
 
     perf = {"cps": 0, "fps": 0}
-    mem_cache = ["" for _ in range(len(chip8_ref[0].memory) // 16)]
+    gfx_cache = ["" for _ in range(CHIP8_HEIGHT)]
 
     def update_rom_view(cpu):
         rom_text.delete("1.0", tk.END)
@@ -159,19 +159,18 @@ def create_menu(root, chip8_ref):
             for i in range(16):
                 labels[f"V{i}"].config(text=f"{cpu.V[i]:02X}")
 
-            for addr in range(0, len(cpu.memory), 16):
-                chunk = cpu.memory[addr : addr + 16]
-                chunk_hex = " ".join(f"{b:02X}" for b in chunk)
-                line = f"{addr:03X}: {chunk_hex}"
-                idx = addr // 16
-                if mem_cache[idx] != line:
-                    if mem_cache[idx] == "":
-                        mem_text.insert(tk.END, line + "\n")
+            for row in range(CHIP8_HEIGHT):
+                start = row * CHIP8_WIDTH
+                chunk = cpu.gfx[start : start + CHIP8_WIDTH]
+                line = "".join("#" if b else "." for b in chunk)
+                if gfx_cache[row] != line:
+                    if gfx_cache[row] == "":
+                        gfx_text.insert(tk.END, line + "\n")
                     else:
-                        ln = idx + 1
-                        mem_text.delete(f"{ln}.0", f"{ln}.0 lineend")
-                        mem_text.insert(f"{ln}.0", line)
-                    mem_cache[idx] = line
+                        ln = row + 1
+                        gfx_text.delete(f"{ln}.0", f"{ln}.0 lineend")
+                        gfx_text.insert(f"{ln}.0", line)
+                    gfx_cache[row] = line
 
         labels["CPS"].config(text=f"CPS: {perf['cps']:.0f}")
         labels["FPS"].config(text=f"FPS: {perf['fps']:.0f}")
@@ -206,7 +205,7 @@ def create_menu(root, chip8_ref):
     return debug_win, update_debug, update_rom_view, toggle_debug, file_menu, perf
 
 
-def draw_screen(renderer, chip8, window):
+def draw_screen(renderer, chip8, window, texture, framebuffer):
     win_w = ctypes.c_int()
     win_h = ctypes.c_int()
     sdl2.SDL_GetWindowSize(window, ctypes.byref(win_w), ctypes.byref(win_h))
@@ -224,27 +223,16 @@ def draw_screen(renderer, chip8, window):
     off_y = (win_h - draw_h) // 2
     scale_x = draw_w / CHIP8_WIDTH
     scale_y = draw_h / CHIP8_HEIGHT
-    px_w = max(1, int(scale_x))
-    px_h = max(1, int(scale_y))
 
+    for i, pixel in enumerate(chip8.gfx):
+        framebuffer[i] = 0xFFFFFFFF if pixel else 0xFF000000
+
+    sdl2.SDL_UpdateTexture(texture, None, framebuffer, CHIP8_WIDTH * 4)
+
+    dest = sdl2.SDL_Rect(off_x, off_y, draw_w, draw_h)
     sdl2.SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255)
     sdl2.SDL_RenderClear(renderer)
-
-    for y in range(CHIP8_HEIGHT):
-        for x in range(CHIP8_WIDTH):
-            pixel = chip8.gfx[y * CHIP8_WIDTH + x]
-            if pixel:
-                sdl2.SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255)
-            else:
-                sdl2.SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255)
-            rect = sdl2.SDL_Rect(
-                int(off_x + x * scale_x),
-                int(off_y + y * scale_y),
-                px_w,
-                px_h,
-            )
-            sdl2.SDL_RenderFillRect(renderer, rect)
-
+    sdl2.SDL_RenderCopy(renderer, texture, None, dest)
     sdl2.SDL_RenderPresent(renderer)
 
 
@@ -263,6 +251,14 @@ def main():
     renderer = sdl2.SDL_CreateRenderer(
         window, -1, sdl2.SDL_RENDERER_ACCELERATED | sdl2.SDL_RENDERER_PRESENTVSYNC
     )
+    texture = sdl2.SDL_CreateTexture(
+        renderer,
+        sdl2.SDL_PIXELFORMAT_RGBA8888,
+        sdl2.SDL_TEXTUREACCESS_STREAMING,
+        CHIP8_WIDTH,
+        CHIP8_HEIGHT,
+    )
+    framebuffer = (ctypes.c_uint32 * (CHIP8_WIDTH * CHIP8_HEIGHT))()
 
     chip8_ref = [chip8_hw.ChipEightCpu()]
     rom_loaded = False
@@ -381,7 +377,7 @@ def main():
                 last_cps_update = now
 
             if now - last_frame >= frame_delay or chip8_ref[0].update_screen:
-                draw_screen(renderer, chip8_ref[0], window)
+                draw_screen(renderer, chip8_ref[0], window, texture, framebuffer)
                 chip8_ref[0].update_screen = False
                 last_frame = now
                 fps_count += 1
