@@ -46,7 +46,7 @@ class ChipEightCpu(object):
         self.debug = False
         self.debug_callback = debug_callback
 
-        #TODO: load font set.
+        self._load_fontset()
 
         self.instruction_dispatch = {
                 0x0000 : self.x0_dispatch,
@@ -89,6 +89,31 @@ class ChipEightCpu(object):
                 0xF065 : self.ld_vx_i
         }
 
+    def _load_fontset(self):
+        """Load the CHIP-8 fontset into memory starting at 0x50."""
+        fontset = [
+            0xF0, 0x90, 0x90, 0x90, 0xF0,  # 0
+            0x20, 0x60, 0x20, 0x20, 0x70,  # 1
+            0xF0, 0x10, 0xF0, 0x80, 0xF0,  # 2
+            0xF0, 0x10, 0xF0, 0x10, 0xF0,  # 3
+            0x90, 0x90, 0xF0, 0x10, 0x10,  # 4
+            0xF0, 0x80, 0xF0, 0x10, 0xF0,  # 5
+            0xF0, 0x80, 0xF0, 0x90, 0xF0,  # 6
+            0xF0, 0x10, 0x20, 0x40, 0x40,  # 7
+            0xF0, 0x90, 0xF0, 0x90, 0xF0,  # 8
+            0xF0, 0x90, 0xF0, 0x10, 0xF0,  # 9
+            0xF0, 0x90, 0xF0, 0x90, 0x90,  # A
+            0xE0, 0x90, 0xE0, 0x90, 0xE0,  # B
+            0xF0, 0x80, 0x80, 0x80, 0xF0,  # C
+            0xE0, 0x90, 0x90, 0x90, 0xE0,  # D
+            0xF0, 0x80, 0xF0, 0x80, 0xF0,  # E
+            0xF0, 0x80, 0xF0, 0x80, 0x80   # F
+        ]
+
+        start = 0x50
+        for i, byte in enumerate(fontset):
+            self.memory[start + i] = byte
+
     def reset(self):
         self.memory = bytearray(self.CHIP8MAXMEM)
         self.V = [0] * 16
@@ -101,7 +126,7 @@ class ChipEightCpu(object):
         self.stack = []
         self.key = [0] * 16
 
-        #TODO: load font set.
+        self._load_fontset()
 
         self.debug = False
 
@@ -375,8 +400,8 @@ class ChipEightCpu(object):
         the net.
         TODO: test if this actually works
         '''
-        drw_x = self.V[self.v_x]
-        drw_y = self.V[self.v_y]
+        drw_x = min(self.V[self.v_x], 63)
+        drw_y = min(self.V[self.v_y], 31)
         drw_height = opcode & 0x000F
         sprite_data = []
         #set VF to zero because there has been no collision yet
@@ -385,10 +410,12 @@ class ChipEightCpu(object):
         for x in range(drw_height):
             sprite_data.append(self.memory[self.I + x])
         for sprite_row in range(len(sprite_data)):
+            if drw_y + sprite_row >= 32:
+                break
             for pixel_offset in range(8):
-                location = drw_x + pixel_offset + ((drw_y + sprite_row) * 64)
-                if (drw_y + sprite_row) >= 32 or (drw_x + pixel_offset - 1) >= 64:
+                if drw_x + pixel_offset >= 64:
                     continue
+                location = drw_x + pixel_offset + ((drw_y + sprite_row) * 64)
                 drw_mask = 1 << (7 - pixel_offset)
                 curr_pixel = (sprite_data[sprite_row] & drw_mask) >> (7 - pixel_offset)
                 if curr_pixel:
@@ -471,7 +498,7 @@ class ChipEightCpu(object):
         '''
         Fx29 - LD F, Vx
         '''
-        self.I = self.V[self.v_x] * 5
+        self.I = 0x50 + self.V[self.v_x] * 5
         self.pc += 2
 
     def ld_b_vx(self, opcode):
