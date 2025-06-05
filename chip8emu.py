@@ -92,7 +92,7 @@ def create_menu(root, chip8_ref):
     debug_var = tk.BooleanVar(value=False)
     debug_win = tk.Toplevel(root)
     debug_win.title("Debug")
-    debug_win.geometry("300x300")
+    debug_win.geometry("500x500")
 
     labels = {}
     row = 0
@@ -122,6 +122,12 @@ def create_menu(root, chip8_ref):
         labels[f"V{i}"].grid(row=row + i // 2, column=(i % 2) * 2 + 1, sticky="w")
     row += 8
 
+    mem_text = tk.Text(debug_win, width=48, height=20, font=("Courier", 8))
+    mem_text.grid(row=row, column=0, columnspan=4, sticky="nsew")
+    debug_win.rowconfigure(row, weight=1)
+    debug_win.columnconfigure(3, weight=1)
+    row += 1
+
     debug_win.withdraw()
 
     perf = {"cps": 0, "fps": 0}
@@ -134,6 +140,15 @@ def create_menu(root, chip8_ref):
             labels["ST"].config(text=f"ST: {cpu.sound_timer:02X}")
             for i in range(16):
                 labels[f"V{i}"].config(text=f"{cpu.V[i]:02X}")
+
+            mem_lines = []
+            for addr in range(0, len(cpu.memory), 16):
+                chunk = cpu.memory[addr : addr + 16]
+                chunk_hex = " ".join(f"{b:02X}" for b in chunk)
+                mem_lines.append(f"{addr:03X}: {chunk_hex}")
+            mem_text.delete("1.0", tk.END)
+            mem_text.insert("1.0", "\n".join(mem_lines))
+
         labels["CPS"].config(text=f"CPS: {perf['cps']:.0f}")
         labels["FPS"].config(text=f"FPS: {perf['fps']:.0f}")
 
@@ -234,10 +249,19 @@ def main():
     frame.bind("<Configure>", on_frame_resize)
 
     def on_key_press(event):
-        process_key_event(chip8_ref[0], event.keysym, True)
+        nonlocal paused, step_once
+        key = event.keysym.lower()
+        if key == "p":
+            paused = not paused
+        elif key == "i":
+            step_once = True
+        else:
+            process_key_event(chip8_ref[0], event.keysym, True)
 
     def on_key_release(event):
-        process_key_event(chip8_ref[0], event.keysym, False)
+        key = event.keysym.lower()
+        if key not in {"p", "i"}:
+            process_key_event(chip8_ref[0], event.keysym, False)
 
     root.bind_all("<KeyPress>", on_key_press)
     root.bind_all("<KeyRelease>", on_key_release)
@@ -246,6 +270,8 @@ def main():
     debug_win, update_debug, file_menu, perf = create_menu(root, chip8_ref)
 
     running = True
+    paused = False
+    step_once = False
     frame_delay = 1 / 60.0
     cycle_hz = CYCLE_HZ
 
@@ -293,20 +319,32 @@ def main():
             if event.type == sdl2.SDL_QUIT:
                 running = False
             elif event.type == sdl2.SDL_KEYDOWN:
-                process_key_event(chip8_ref[0], event.key.keysym.sym, True)
+                if event.key.keysym.sym == sdl2.SDLK_p:
+                    paused = not paused
+                elif event.key.keysym.sym == sdl2.SDLK_i:
+                    step_once = True
+                else:
+                    process_key_event(chip8_ref[0], event.key.keysym.sym, True)
             elif event.type == sdl2.SDL_KEYUP:
-                process_key_event(chip8_ref[0], event.key.keysym.sym, False)
+                if event.key.keysym.sym not in (sdl2.SDLK_p, sdl2.SDLK_i):
+                    process_key_event(chip8_ref[0], event.key.keysym.sym, False)
 
         now = time.time()
         dt = now - last_time
         last_time = now
 
         if rom_loaded:
-            cycle_accum += dt * cycle_hz
-            while cycle_accum >= 1.0:
-                chip8_ref[0].emulate_cycle()
-                cycle_accum -= 1.0
-                cycles_executed += 1
+            if paused:
+                if step_once:
+                    chip8_ref[0].emulate_cycle()
+                    step_once = False
+                    cycles_executed += 1
+            else:
+                cycle_accum += dt * cycle_hz
+                while cycle_accum >= 1.0:
+                    chip8_ref[0].emulate_cycle()
+                    cycle_accum -= 1.0
+                    cycles_executed += 1
 
             if now - last_cps_update >= 1.0:
                 perf["cps"] = cycles_executed / (now - last_cps_update)
