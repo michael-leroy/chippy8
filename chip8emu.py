@@ -269,6 +269,19 @@ def main():
     audio_device = sdl2.SDL_OpenAudioDevice(None, 0, desired, None, 0)
     sound_playing = False
 
+    def handle_sound():
+        """Play or stop the tone based on the CHIP-8 sound timer."""
+        nonlocal sound_playing
+        if chip8_ref[0].sound_timer > 0:
+            sdl2.SDL_QueueAudio(audio_device, beep_bytes, len(beep_bytes))
+            if not sound_playing:
+                sdl2.SDL_PauseAudioDevice(audio_device, 0)
+                sound_playing = True
+        elif sound_playing:
+            sdl2.SDL_ClearQueuedAudio(audio_device)
+            sdl2.SDL_PauseAudioDevice(audio_device, 1)
+            sound_playing = False
+
     chip8_ref = [chip8_hw.ChipEightCpu()]
     rom_loaded = False
 
@@ -371,12 +384,14 @@ def main():
             if paused:
                 if step_once:
                     chip8_ref[0].emulate_cycle()
+                    handle_sound()
                     step_once = False
                     cycles_executed += 1
             else:
                 cycle_accum += dt * cycle_hz
                 while cycle_accum >= 1.0:
                     chip8_ref[0].emulate_cycle()
+                    handle_sound()
                     cycle_accum -= 1.0
                     cycles_executed += 1
 
@@ -396,22 +411,13 @@ def main():
                 fps_count = 0
                 last_fps_update = now
 
-            # handle sound timer -> play beep
-            if chip8_ref[0].sound_timer > 0:
-                sdl2.SDL_QueueAudio(audio_device, beep_bytes, len(beep_bytes))
-                if not sound_playing:
-                    sdl2.SDL_PauseAudioDevice(audio_device, 0)
-                    sound_playing = True
-            elif sound_playing:
-                sdl2.SDL_ClearQueuedAudio(audio_device)
-                sdl2.SDL_PauseAudioDevice(audio_device, 1)
-                sound_playing = False
 
         if chip8_ref[0].debug:
             update_debug(chip8_ref[0])
 
         root.update_idletasks()
         root.update()
+        handle_sound()
         sdl2.SDL_Delay(1)
 
     root.destroy()
