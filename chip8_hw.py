@@ -90,7 +90,7 @@ class ChipEightCpu(object):
         }
 
     def _load_fontset(self):
-        """Load the CHIP-8 fontset into memory starting at 0x50."""
+        """Load the CHIP-8 fontset into memory starting at address 0."""
         fontset = [
             0xF0, 0x90, 0x90, 0x90, 0xF0,  # 0
             0x20, 0x60, 0x20, 0x20, 0x70,  # 1
@@ -110,7 +110,7 @@ class ChipEightCpu(object):
             0xF0, 0x80, 0xF0, 0x80, 0x80   # F
         ]
 
-        start = 0x50
+        start = 0x000
         for i, byte in enumerate(fontset):
             self.memory[start + i] = byte
 
