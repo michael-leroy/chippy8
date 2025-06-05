@@ -313,13 +313,13 @@ def test_rom_load():
 
 def test_process_key_event():
     cpu = chip8_hw.ChipEightCpu()
-    chip8emu.process_key_event(cpu, sdl2.SDLK_1, True)
+    assert chip8emu.process_key_event(cpu, sdl2.SDLK_1, True) is True
     assert cpu.key[0x1] == 1
-    chip8emu.process_key_event(cpu, sdl2.SDLK_1, False)
+    assert chip8emu.process_key_event(cpu, sdl2.SDLK_1, False) is True
     assert cpu.key[0x1] == 0
 
     original = cpu.key.copy()
-    chip8emu.process_key_event(cpu, sdl2.SDLK_SPACE, True)
+    assert chip8emu.process_key_event(cpu, sdl2.SDLK_SPACE, True) is False
     assert cpu.key == original
 
 

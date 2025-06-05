@@ -34,11 +34,18 @@ KEY_MAP = {
 }
 
 
-def process_key_event(cpu: chip8_hw.ChipEightCpu, key_sym: int, pressed: bool) -> None:
-    """Update CHIP-8 key state for a host keyboard event."""
+def process_key_event(
+    cpu: chip8_hw.ChipEightCpu, key_sym: int, pressed: bool
+) -> bool:
+    """Update CHIP-8 key state for a host keyboard event.
+
+    Returns ``True`` if the key was mapped to a CHIP-8 keypad entry.
+    """
     chip_key = KEY_MAP.get(key_sym)
     if chip_key is not None:
         cpu.key[chip_key] = 1 if pressed else 0
+        return True
+    return False
 
 
 CHIP8_WIDTH = 64
