@@ -46,7 +46,7 @@ class ChipEightCpu(object):
         self.debug = False
         self.debug_callback = debug_callback
 
-        #TODO: load font set.
+        self._load_fontset()
 
         self.instruction_dispatch = {
                 0x0000 : self.x0_dispatch,
@@ -89,6 +89,31 @@ class ChipEightCpu(object):
                 0xF065 : self.ld_vx_i
         }
 
+    def _load_fontset(self):
+        """Load the CHIP-8 fontset into memory starting at address 0."""
+        fontset = [
+            0xF0, 0x90, 0x90, 0x90, 0xF0,  # 0
+            0x20, 0x60, 0x20, 0x20, 0x70,  # 1
+            0xF0, 0x10, 0xF0, 0x80, 0xF0,  # 2
+            0xF0, 0x10, 0xF0, 0x10, 0xF0,  # 3
+            0x90, 0x90, 0xF0, 0x10, 0x10,  # 4
+            0xF0, 0x80, 0xF0, 0x10, 0xF0,  # 5
+            0xF0, 0x80, 0xF0, 0x90, 0xF0,  # 6
+            0xF0, 0x10, 0x20, 0x40, 0x40,  # 7
+            0xF0, 0x90, 0xF0, 0x90, 0xF0,  # 8
+            0xF0, 0x90, 0xF0, 0x10, 0xF0,  # 9
+            0xF0, 0x90, 0xF0, 0x90, 0x90,  # A
+            0xE0, 0x90, 0xE0, 0x90, 0xE0,  # B
+            0xF0, 0x80, 0x80, 0x80, 0xF0,  # C
+            0xE0, 0x90, 0x90, 0x90, 0xE0,  # D
+            0xF0, 0x80, 0xF0, 0x80, 0xF0,  # E
+            0xF0, 0x80, 0xF0, 0x80, 0x80   # F
+        ]
+
+        start = 0x000
+        for i, byte in enumerate(fontset):
+            self.memory[start + i] = byte
+
     def reset(self):
         self.memory = bytearray(self.CHIP8MAXMEM)
         self.V = [0] * 16
@@ -101,7 +126,7 @@ class ChipEightCpu(object):
         self.stack = []
         self.key = [0] * 16
 
-        #TODO: load font set.
+        self._load_fontset()
 
         self.debug = False
 
